@@ -1,0 +1,15 @@
+# DEPLOYMENT: Multi-container orchestration tool for spinning up local API, Redis, and worker nodes seamlessly.
+version: '3.8'
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=sandbox
+    depends_on:
+      - redis
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"

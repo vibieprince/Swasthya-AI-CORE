@@ -1,0 +1,9 @@
+# CONFIGURATION: Strict standard production filters for Python compilation files, virtual environments, and secrets.
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv/
+env/
+venv
+*.log
