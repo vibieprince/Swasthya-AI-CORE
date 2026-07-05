@@ -1,7 +1,1 @@
-"""
-SERVICES: Marks the external services directory partition.
-"""
-import logging
-from typing import List, Optional, Protocol, Dict, Any
-
-logger = logging.getLogger(__name__)
+"""Services package."""

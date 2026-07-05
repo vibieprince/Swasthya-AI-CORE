@@ -1,12 +1,32 @@
-# DEPENDENCY: Strict, version-pinned tracking file for all required production Python modules.
-fastapi==0.109.2
-uvicorn==0.27.1
-pydantic==2.6.1
-pydantic-settings==2.1.0
-celery==5.3.6
-redis==5.0.1
-sqlalchemy==2.0.25
-psycopg2-binary==2.9.9
-playwright==1.41.1
-selenium==4.17.2
-langchain==0.1.5
+# ── Runtime ────────────────────────────────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+pydantic==2.10.4
+pydantic-settings==2.7.0
+
+# ── Async HTTP ─────────────────────────────────────────────────────────────────
+httpx==0.28.1
+
+# ── Message Queue ──────────────────────────────────────────────────────────────
+aio-pika==9.5.4
+
+# ── Redis ─────────────────────────────────────────────────────────────────────
+redis[asyncio]==5.2.1
+
+# ── Scraping ───────────────────────────────────────────────────────────────────
+playwright==1.49.1
+selenium==4.27.1
+beautifulsoup4==4.12.3
+lxml==5.3.0
+
+# ── Text Processing ────────────────────────────────────────────────────────────
+rapidfuzz==3.11.0
+
+# ── Observability ─────────────────────────────────────────────────────────────
+python-json-logger==3.2.1
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-multipart==0.0.20
+python-dotenv==1.0.1
+tenacity==9.0.0
+orjson==3.10.12

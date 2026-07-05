@@ -1,76 +1,102 @@
 """
-API Processing Layer Middleware.
+SWASTHYA AI CORE — API Middleware.
 
-Intercepts incoming HTTP traffic to manage correlation contexts,
-measure tracking latency, and handle runtime execution errors cleanly.
+Provides correlation ID threading, structured logging of requests/responses,
+and global exception handling.
 """
 
+from __future__ import annotations
+
 import time
-import uuid
-import logging
-from typing import Any, Awaitable, Callable
+from collections.abc import Callable
+from typing import Any
+
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from config.logging_config import correlation_id_ctx
 
-logger = logging.getLogger(__name__)
+from src.common.correlation import generate_correlation_id, set_correlation_id
+from src.common.exceptions import SwasthyaBaseError
+from src.common.logging import get_logger
+
+logger = get_logger(__name__)
 
 
-class OperationalContextMiddleware(BaseHTTPMiddleware):
+class RequestCorrelationMiddleware(BaseHTTPMiddleware):
     """
-    Orchestrates transaction lifecycle boundaries by generating correlation tokens,
-    tracking route execution speeds, and catching unhandled errors.
+    Assigns a correlation ID to every incoming request.
+    If the client provided X-Correlation-ID, we use it. Otherwise, we generate one.
     """
+
     async def dispatch(
-        self, 
-        request: Request, 
-        call_next: Callable[[Request], Awaitable[Response]]
+        self,
+        request: Request,
+        call_next: Callable[[Request], Any],
     ) -> Response:
-        start_time = time.perf_counter()
         
-        # Extract existing consumer chain tokens or initialize a fresh tracing session
-        correlation_id = request.headers.get("X-Correlation-ID") or str(uuid.uuid4())
+        correlation_id = request.headers.get("X-Correlation-ID")
+        if not correlation_id:
+            correlation_id = generate_correlation_id()
+            
+        set_correlation_id(correlation_id)
         
-        # Bind token straight to active asynchronous execution frame context
-        token = correlation_id_ctx.set(correlation_id)
-
+        t_start = time.monotonic()
+        
         try:
-            logger.info(f"Ingress HTTP Request: {request.method} {request.url.path}")
             response = await call_next(request)
             
-            duration = time.perf_counter() - start_time
-            response.headers["X-Correlation-ID"] = correlation_id
-            response.headers["X-Execution-Duration-Seconds"] = f"{duration:.4f}"
+            latency_ms = int((time.monotonic() - t_start) * 1000)
             
-            logger.info(f"Egress HTTP Response: Completed {response.status_code} in {duration:.4f}s")
-            return response
-
-        except Exception as unhandled_error:
-            duration = time.perf_counter() - start_time
-            logger.critical(
-                f"System Exception Intercepted: {str(unhandled_error)} "
-                f"Execution lifetime failed at {duration:.4f}s", 
-                exc_info=True
+            # Log successful requests
+            logger.info(
+                "Request completed",
+                extra={
+                    "method": request.method,
+                    "url": str(request.url.path),
+                    "status_code": response.status_code,
+                    "latency_ms": latency_ms,
+                }
             )
             
-            # Formulate type-safe production diagnostics block without revealing backend internals
-            error_payload = {
-                "status": "fail",
-                "correlation_id": correlation_id,
-                "error": {
-                    "code": "INTERNAL_SERVER_ERROR",
-                    "message": "An unhandled execution error occurred within Swasthya Core Engine.",
-                    "diagnostics": f"Tracking signature reference: {correlation_id}"
+            # Ensure correlation ID is returned in response headers
+            response.headers["X-Correlation-ID"] = correlation_id
+            return response
+            
+        except Exception as exc:
+            latency_ms = int((time.monotonic() - t_start) * 1000)
+            
+            # Centralized error mapping
+            if isinstance(exc, SwasthyaBaseError):
+                status_code = getattr(exc, "status_code", 400)
+                error_response = {
+                    "error": {
+                        "code": exc.code,
+                        "message": exc.message,
+                    }
                 }
-            }
+            else:
+                status_code = 500
+                error_response = {
+                    "error": {
+                        "code": "INTERNAL_SERVER_ERROR",
+                        "message": "An unexpected internal server error occurred."
+                    }
+                }
+                
+            logger.error(
+                "Request failed",
+                extra={
+                    "method": request.method,
+                    "url": str(request.url.path),
+                    "status_code": status_code,
+                    "error_code": error_response["error"]["code"],
+                    "latency_ms": latency_ms,
+                },
+                exc_info=status_code == 500
+            )
             
             return JSONResponse(
-                status_code=500,
-                content=error_payload,
+                status_code=status_code,
+                content=error_response,
                 headers={"X-Correlation-ID": correlation_id}
             )
-            
-        finally:
-            # Clean up token space post-execution to prevent tracking leaks
-            correlation_id_ctx.reset(token)
