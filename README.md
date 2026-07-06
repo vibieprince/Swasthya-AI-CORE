@@ -19,7 +19,7 @@
 
 Deployed seamlessly on Render, SWASTHYA AI CORE utilizes a pure **In-Memory Asynchronous Job Scheduler**, meaning it runs perfectly as a single, unified web service container without requiring separate worker nodes or external message brokers like RabbitMQ.
 
-**Live API Base URL:** `https://swasthya-ai-core.onrender.com`
+**Live API Base URL:** [https://swasthya-ai-core.onrender.com](https://swasthya-ai-core.onrender.com)
 
 ---
 
@@ -56,59 +56,326 @@ Deployed seamlessly on Render, SWASTHYA AI CORE utilizes a pure **In-Memory Asyn
 - **LLM Integrations:** Direct HTTPX integrations (No bloated SDKs)
 
 ---
+---
 
-## 🚦 Getting Started (Local Development)
+# ⚙️ End-to-End Request Lifecycle
 
-The backend is built for minimal configuration and immediate deployment.
+Every request entering **SWASTHYA AI CORE** follows a deterministic, production-grade orchestration pipeline designed for low latency, resilience, and conversational continuity.
 
-### 1. Environment Configuration
-
-Clone the repository and set up the environment variables.
-
-```bash
-cp .env.example .env
-```
-*Note: The application uses strict Pydantic Settings and will **REFUSE TO START** if required keys (Gemini, Google Maps, Redis) are missing or set to placeholders.*
-
-### 2. Run Locally via Docker Compose
-
-```bash
-docker-compose up -d --build
-```
-This commands boots:
-1. **The Core API** (`http://localhost:8000`)
-2. **Redis** (`redis://localhost:6379/0`)
-
-### 3. Local Manual Installation
-
-If you prefer running without Docker:
-
-```bash
-python -m venv venv
-source venv/bin/activate  # Or .\venv\Scripts\activate on Windows
-pip install --upgrade pip
-pip install .
-playwright install chromium --with-deps
-python -m uvicorn src.main:app --host 0.0.0.0 --port 8000
+```text
+                        User Query
+                            │
+                            ▼
+               Context Intelligence API
+        (Language + Intent Classification)
+                            │
+                            ▼
+               Clinical Entity Extraction
+      (Symptoms • Urgency • Location • Specialty)
+                            │
+                            ▼
+              Deterministic Context Validation
+                            │
+          ┌─────────────────┴─────────────────┐
+          │                                   │
+          ▼                                   ▼
+ Missing Information                    Context Complete
+          │                                   │
+          ▼                                   ▼
+ AI Follow-up Question              Discovery API Triggered
+          │                                   │
+          ▼                                   ▼
+ Redis Conversation Session         Async Discovery Executor
+          │                                   │
+          └─────────────────┬─────────────────┘
+                            ▼
+                Multi-source Research Pipeline
+                            │
+      ┌──────────────┬───────────────┬───────────────┐
+      │              │               │               │
+      ▼              ▼               ▼               ▼
+ Google Maps     Tavily Search   Playwright      Metadata
+                                  Scraping     Normalization
+                            │
+                            ▼
+                 Hospital Ranking Engine
+                            │
+                            ▼
+                 AI Recommendation Generator
+                            │
+                            ▼
+                  Redis Progress Tracking
+                            │
+                            ▼
+                 Client Progress Polling
+                            │
+                            ▼
+              Ranked Hospital Recommendations
 ```
 
 ---
 
-## 🌐 Deployment (Render)
+# 🧠 Multi-Stage AI Pipeline
 
-This repository is optimized for **Render Free** deployment as a single Web Service. 
+Instead of relying on a single LLM call, SWASTHYA AI CORE decomposes reasoning into specialized AI stages.
 
-1. **Dockerized Environment:** The unified `Dockerfile` automatically builds the FastAPI environment alongside Chromium.
-2. **Health Checks:** Native `/health` endpoint configured for Render deployment probes.
-3. **Port Binding:** Automatically respects Render's dynamically injected `$PORT` variable via shell execution wrapper.
-4. **Build System:** Relies on modern `setuptools.build_meta` standard compliant packaging.
+| Pipeline | Responsibility |
+|-----------|----------------|
+| **Pass 1** | Language detection, greeting recognition and healthcare intent classification |
+| **Pass 2** | Clinical entity extraction (symptoms, urgency, location, demographics, specialty) |
+| **Pass 3** | Natural-language follow-up generation for missing mandatory information |
+| **Discovery** | Hospital research, evidence aggregation and data normalization |
+| **Ranking** | Multi-factor deterministic hospital scoring |
+| **Explainer** | Human-friendly recommendation summaries and reasoning |
 
-**Render Service Settings:**
-- **Environment:** Docker
-- **Build Command:** *(None needed, Render detects Dockerfile)*
-- **Start Command:** *(None needed, defined in Dockerfile)*
-- **Environment Variables:** Provide API keys and external Redis URL.
+This modular design significantly improves accuracy while reducing hallucinations, latency and token consumption.
 
+---
+
+# 💬 Multi-turn Conversation Intelligence
+
+Unlike traditional stateless REST APIs, SWASTHYA AI CORE maintains conversational continuity using lightweight Redis-backed session memory.
+
+### Supported Conversation Flow
+
+```text
+User:
+Hello
+
+↓
+
+Assistant:
+How can I help you today regarding your health?
+
+↓
+
+User:
+I have severe chest pain.
+
+↓
+
+Assistant:
+May I know your current location?
+
+↓
+
+User:
+Sector 18 Noida
+
+↓
+
+Assistant:
+Context complete.
+
+↓
+
+Discovery Pipeline Starts
+```
+
+### Features
+
+- Context accumulation across multiple turns
+- Session versioning
+- Deterministic context validation
+- Automatic follow-up generation
+- Sliding Redis session expiration
+- Zero persistent storage of patient conversations
+
+---
+
+# ⚡ Performance Optimizations
+
+The backend was engineered to reduce latency, infrastructure cost and LLM usage without sacrificing accuracy.
+
+## Intelligent Pipeline Short-Circuiting
+
+- Greeting requests bypass unnecessary clinical extraction.
+- Complete contexts skip follow-up generation.
+- Deterministic validation avoids redundant LLM calls.
+
+---
+
+## Prompt Compression
+
+Prompt templates were redesigned to minimize input and output tokens.
+
+Benefits include:
+
+- Faster Time-To-First-Token (TTFT)
+- Reduced inference cost
+- Lower response latency
+- Smaller context windows
+
+---
+
+## Delta Context Extraction
+
+Instead of repeatedly sending the complete clinical JSON to the LLM, continuation turns extract only newly mentioned information.
+
+Example:
+
+Initial Context
+
+```text
+Symptoms:
+• Severe Chest Pain
+```
+
+Follow-up Message
+
+```text
+Sector 18 Noida
+```
+
+LLM extracts only
+
+```json
+{
+    "patient_location": {
+        "raw_location": "Sector 18 Noida"
+    }
+}
+```
+
+Python then deterministically merges this delta into the existing context.
+
+Benefits:
+
+- Smaller prompts
+- Lower token consumption
+- No accidental loss of previously confirmed information
+
+---
+
+## Browser Pooling
+
+Hospital discovery uses Playwright browser pooling instead of launching Chromium for every request.
+
+Benefits:
+
+- Faster scraping
+- Lower memory usage
+- Improved throughput
+- Reduced cold-start latency
+
+---
+
+# 🛡 Reliability & Fault Tolerance
+
+Healthcare applications require graceful degradation rather than complete failure.
+
+SWASTHYA AI CORE incorporates several resilience mechanisms.
+
+## LLM Failover
+
+```text
+            Gemini Flash
+                 │
+        ┌────────┴────────┐
+        │                 │
+        ▼                 ▼
+    Successful       Failure / Rate Limit
+        │                 │
+        ▼                 ▼
+    Response       Circuit Breaker Opens
+                          │
+                          ▼
+                 Automatic Mistral Fallback
+```
+
+Implemented safeguards include:
+
+- Automatic retries
+- Exponential backoff
+- Circuit breaker pattern
+- Provider failover
+- Structured telemetry logging
+
+---
+
+## Background Execution
+
+Hospital discovery executes independently from incoming HTTP requests.
+
+Advantages:
+
+- Immediate API response
+- Non-blocking architecture
+- Concurrent request processing
+- Safe failure isolation
+- Automatic Redis progress updates
+
+---
+
+## Deterministic Validation
+
+Critical business decisions are intentionally **not delegated entirely to an LLM.**
+
+Python performs deterministic validation for:
+
+- Mandatory symptoms
+- Required location
+- Context sufficiency
+- Session lifecycle
+- Conversation state transitions
+
+LLMs are reserved only for natural language understanding.
+
+---
+
+# 🚧 Engineering Challenges Solved
+
+During development, several production-scale engineering challenges were addressed.
+
+- Multi-turn conversational state management
+- Redis-backed session persistence
+- Asynchronous discovery orchestration
+- LLM provider failover
+- Real-time progress tracking
+- Browser pooling for Playwright
+- Dynamic hospital research and normalization
+- Token optimization through prompt engineering
+- Deterministic validation alongside probabilistic AI
+- Stateless cloud deployment on a single container
+- Graceful degradation during external API failures
+
+---
+
+# 📊 System Characteristics
+
+| Property | Implementation |
+|-----------|----------------|
+| **Architecture** | Layered Clean Architecture |
+| **API Style** | REST |
+| **Concurrency** | AsyncIO |
+| **Background Processing** | Internal Async Job Executor |
+| **Conversation Memory** | Redis |
+| **Progress Tracking** | Redis |
+| **LLM Providers** | Gemini + Mistral |
+| **Search Engine** | Google Maps + Tavily |
+| **Scraping Engine** | Playwright + BeautifulSoup |
+| **Fallback Strategy** | Circuit Breaker + Provider Failover |
+| **Deployment** | Docker + Render |
+| **Observability** | Structured Logging & Telemetry |
+
+---
+
+# 💡 Why SWASTHYA AI CORE?
+
+SWASTHYA AI CORE is not simply a chatbot or CRUD backend.
+
+It is a production-oriented AI orchestration platform that combines:
+
+- 🧠 Conversational AI
+- 🏥 Healthcare Intelligence
+- ⚡ Asynchronous Background Processing
+- 🌐 Deep Web Research & Scraping
+- 📊 Explainable Hospital Ranking
+- 🔄 Multi-turn Context Management
+- 🛡 Fault-Tolerant AI Pipelines
+- 🚀 Cloud-Native Deployment
+
+The result is a modular, scalable and production-ready intelligence layer capable of powering healthcare applications requiring reliable clinical context understanding and intelligent hospital discovery.
 ---
 
 ## 📚 API Endpoints Summary
@@ -129,7 +396,7 @@ This repository is optimized for **Render Free** deployment as a single Web Serv
 * **`GET /health`**
   Liveness probe for monitoring platforms.
 
-*(Refer to the `docs.html` file in the repository root for the full Client API Handbook and interaction diagrams).*
+*(Refer to the [docs.html](https://swasthya-ai-core.onrender.com/docs.html) file in the repository root for the full Client API Handbook and interaction diagrams).*
 
 ---
 
