@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- SEO & Meta Tags -->
+    <title>SWASTHYA AI CORE - Production-grade AI Healthcare Intelligence Engine</title>
+    <meta name="description" content="SWASTHYA AI CORE is a production-ready async orchestration backend powering healthcare applications with context intelligence and hospital discovery.">
+    <meta name="keywords" content="Healthcare AI, Async Pipeline, Hospital Discovery, NLP, FastAPI, Medical AI Engine">
+    <meta name="author" content="Prince Singh">
+    <link rel="canonical" href="https://swasthya-ai-core.onrender.com/">
+    
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://swasthya-ai-core.onrender.com/">
+    <meta property="og:title" content="SWASTHYA AI CORE - Healthcare Intelligence">
+    <meta property="og:description" content="Production-grade async orchestration backend powering medical applications.">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SWASTHYA AI CORE">
+    <meta name="twitter:description" content="Production-grade AI Healthcare Intelligence Engine">
+
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚕️</text></svg>">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        bgLight: '#FAFBFC',
+                        card: '#FFFFFF',
+                        primary: '#2563EB',
+                        accent: '#0F766E',
+                        textPrimary: '#111827',
+                        textSecondary: '#6B7280',
+                        borderLight: '#E5E7EB',
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                        'hover': '0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04)',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Custom Styles -->
+    <style>
+        body {
+            background-color: #FAFBFC;
+            color: #111827;
+        }
+        
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .card-lift {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card-lift:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+        }
+        
+        /* Floating Animation */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        .animate-float-delay {
+            animation: float 6s ease-in-out 2s infinite;
+        }
+        .animate-float-fast {
+            animation: float 4s ease-in-out 1s infinite;
+        }
+
+        /* SVG Line Dash Animation */
+        @keyframes dash {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+        .path-animate {
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: dash 3s linear infinite;
+        }
+        
+        .timeline-line::before {
+            content: '';
+            position: absolute;
+            left: 24px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #E5E7EB;
+            z-index: 0;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-primary selection:text-white">
+
+    <!-- Navigation -->
+    <nav class="fixed w-full bg-white/90 backdrop-blur-md border-b border-borderLight z-50 transition-all duration-300" id="navbar">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center gap-2 cursor-pointer" onclick="window.scrollTo(0,0)">
+                    <svg class="w-8 h-8 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    </svg>
+                    <span class="font-bold text-lg tracking-tight text-textPrimary">SWASTHYA AI CORE</span>
+                </div>
+
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#overview" class="text-sm font-medium text-textSecondary hover:text-primary transition-colors">Overview</a>
+                    <a href="#architecture" class="text-sm font-medium text-textSecondary hover:text-primary transition-colors">Architecture</a>
+                    <a href="#features" class="text-sm font-medium text-textSecondary hover:text-primary transition-colors">Features</a>
+                    <a href="#workflow" class="text-sm font-medium text-textSecondary hover:text-primary transition-colors">Workflow</a>
+                    <a href="#stack" class="text-sm font-medium text-textSecondary hover:text-primary transition-colors">Tech Stack</a>
+                    <a href="/docs" class="text-sm font-medium text-primary hover:text-primary/80 transition-colors">Documentation</a>
+                    
+                    <a href="https://github.com/vibieprince/Swasthya-AI-CORE" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center px-4 py-2 border border-borderLight rounded-md shadow-sm text-sm font-medium text-textPrimary bg-white hover:bg-gray-50 transition-all card-lift focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                        <svg class="w-5 h-5 mr-2 text-textSecondary" fill="currentColor" viewBox="0 0 24 24">
+                            <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" />
+                        </svg>
+                        GitHub
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Hero Section -->
+        <section class="pt-32 pb-20 sm:pt-40 sm:pb-24 lg:pb-32 overflow-hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+                <div class="lg:grid lg:grid-cols-12 lg:gap-8 items-center">
+                    
+                    <!-- Hero Text -->
+                    <div class="sm:text-center md:max-w-2xl md:mx-auto lg:col-span-6 lg:text-left reveal">
+                        <div class="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium text-accent bg-accent/10 mb-6 border border-accent/20">
+                            v1.0.2 Production Ready
+                        </div>
+                        <h1 class="text-4xl tracking-tight font-bold text-textPrimary sm:text-5xl md:text-6xl lg:text-5xl xl:text-6xl">
+                            <span class="block">Production-grade AI</span>
+                            <span class="block text-primary">Healthcare Orchestration</span>
+                        </h1>
+                        <p class="mt-6 text-base text-textSecondary sm:text-lg lg:text-xl leading-relaxed">
+                            A robust, deterministic intelligence engine powering MedPath. Seamlessly integrates AI context understanding, dynamic hospital discovery, and explainable multi-criteria ranking into a single asynchronous pipeline.
+                        </p>
+                        
+                        <div class="mt-8 sm:max-w-lg sm:mx-auto sm:text-center lg:text-left lg:mx-0 flex flex-col sm:flex-row gap-4">
+                            <a href="/docs" class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary hover:bg-primary/90 transition-all card-lift focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                API Documentation
+                                <svg class="ml-2 -mr-1 w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                </svg>
+                            </a>
+                            <a href="https://github.com/vibieprince/Swasthya-AI-CORE" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center px-6 py-3 border border-borderLight text-base font-medium rounded-md text-textPrimary bg-white hover:bg-gray-50 transition-all card-lift shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                                View Source on GitHub
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Hero Illustration -->
+                    <div class="mt-12 relative sm:max-w-lg sm:mx-auto lg:mt-0 lg:max-w-none lg:mx-0 lg:col-span-6 lg:flex lg:items-center reveal" style="transition-delay: 200ms;">
+                        <svg class="w-full h-auto drop-shadow-xl" viewBox="0 0 600 400" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="SWASTHYA AI Pipeline Architecture">
+                            <!-- Background Elements -->
+                            <rect width="600" height="400" rx="16" fill="white" class="stroke-borderLight stroke-1"/>
+                            
+                            <!-- Connecting Lines -->
+                            <path d="M 100 200 L 250 100 L 400 100 L 520 200" stroke="#E5E7EB" stroke-width="2" stroke-linejoin="round"/>
+                            <path d="M 100 200 L 250 300 L 400 300 L 520 200" stroke="#E5E7EB" stroke-width="2" stroke-linejoin="round"/>
+                            
+                            <!-- Animated Path -->
+                            <path d="M 100 200 L 250 100 L 400 100 L 520 200" stroke="#2563EB" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="path-animate"/>
+                            
+                            <!-- Node 1: User -->
+                            <g class="animate-float">
+                                <circle cx="100" cy="200" r="30" fill="#F3F4F6" stroke="#D1D5DB" stroke-width="2"/>
+                                <path d="M100 190C104.418 190 108 186.418 108 182C108 177.582 104.418 174 100 174C95.5817 174 92 177.582 92 182C92 186.418 95.5817 190 100 190Z" fill="#6B7280"/>
+                                <path d="M112 214C112 207.373 106.627 202 100 202C93.3726 202 88 207.373 88 214" stroke="#6B7280" stroke-width="2" stroke-linecap="round"/>
+                                <text x="100" y="250" font-family="Inter" font-size="12" font-weight="500" fill="#4B5563" text-anchor="middle">Client</text>
+                            </g>
+                            
+                            <!-- Node 2: Context API -->
+                            <g class="animate-float-delay">
+                                <rect x="200" y="70" width="100" height="60" rx="8" fill="white" stroke="#2563EB" stroke-width="2" class="shadow-sm"/>
+                                <text x="250" y="105" font-family="Inter" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">Context API</text>
+                            </g>
+
+                            <!-- Node 3: Discovery API -->
+                            <g class="animate-float-fast">
+                                <rect x="200" y="270" width="100" height="60" rx="8" fill="white" stroke="#0F766E" stroke-width="2" class="shadow-sm"/>
+                                <text x="250" y="305" font-family="Inter" font-size="14" font-weight="600" fill="#111827" text-anchor="middle">Discovery</text>
+                            </g>
+
+                            <!-- Node 4: Validation Engine -->
+                            <g class="animate-float">
+                                <rect x="350" y="70" width="100" height="60" rx="8" fill="#F0F9FF" stroke="#BAE6FD" stroke-width="2"/>
+                                <text x="400" y="100" font-family="Inter" font-size="12" font-weight="600" fill="#0369A1" text-anchor="middle">Deterministic</text>
+                                <text x="400" y="115" font-family="Inter" font-size="12" font-weight="600" fill="#0369A1" text-anchor="middle">Validation</text>
+                            </g>
+
+                            <!-- Node 5: Background Engine -->
+                            <g class="animate-float-delay">
+                                <rect x="350" y="270" width="100" height="60" rx="8" fill="#F0FDF4" stroke="#BBF7D0" stroke-width="2"/>
+                                <text x="400" y="300" font-family="Inter" font-size="12" font-weight="600" fill="#15803D" text-anchor="middle">Async Tasks</text>
+                                <text x="400" y="315" font-family="Inter" font-size="12" font-weight="600" fill="#15803D" text-anchor="middle">(Playwright)</text>
+                            </g>
+
+                            <!-- Node 6: Recommendations -->
+                            <g class="animate-float-fast">
+                                <circle cx="520" cy="200" r="35" fill="white" stroke="#E5E7EB" stroke-width="2" class="shadow-sm"/>
+                                <path d="M510 200L517 207L530 193" stroke="#2563EB" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                <text x="520" y="255" font-family="Inter" font-size="12" font-weight="600" fill="#4B5563" text-anchor="middle">Ranked Results</text>
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 1: What is SWASTHYA AI CORE? -->
+        <section id="overview" class="py-16 bg-white border-y border-borderLight">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="lg:text-center max-w-3xl mx-auto reveal">
+                    <h2 class="text-base text-primary font-semibold tracking-wide uppercase">Not just a Chatbot</h2>
+                    <p class="mt-2 text-3xl leading-8 font-bold tracking-tight text-textPrimary sm:text-4xl">
+                        A definitive intelligence layer for modern healthcare.
+                    </p>
+                    <p class="mt-4 max-w-2xl text-lg text-textSecondary mx-auto">
+                        SWASTHYA AI CORE is the production backend infrastructure for MedPath. It abstracts chaotic natural language into strictly typed clinical state, orchestrates real-time hospital discovery, and returns deterministic, explainable rankings.
+                    </p>
+                </div>
+
+                <div class="mt-16">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        <div class="bg-bgLight rounded-xl p-6 border border-borderLight card-lift reveal" style="transition-delay: 100ms;">
+                            <div class="w-12 h-12 bg-blue-100 text-primary rounded-lg flex items-center justify-center mb-4">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-textPrimary mb-2">Context Intelligence</h3>
+                            <p class="text-sm text-textSecondary">Multi-turn NLP parsing extracts clinical entities and intents securely, building state dynamically.</p>
+                        </div>
+                        <div class="bg-bgLight rounded-xl p-6 border border-borderLight card-lift reveal" style="transition-delay: 200ms;">
+                            <div class="w-12 h-12 bg-teal-100 text-accent rounded-lg flex items-center justify-center mb-4">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-textPrimary mb-2">Hospital Discovery</h3>
+                            <p class="text-sm text-textSecondary">Deep web research pipelines powered by Google Maps and Playwright browser pooling.</p>
+                        </div>
+                        <div class="bg-bgLight rounded-xl p-6 border border-borderLight card-lift reveal" style="transition-delay: 300ms;">
+                            <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center mb-4">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-textPrimary mb-2">Recommendation Engine</h3>
+                            <p class="text-sm text-textSecondary">Multi-criteria scoring evaluates accreditations, distance, and severity to rank the best medical centers.</p>
+                        </div>
+                        <div class="bg-bgLight rounded-xl p-6 border border-borderLight card-lift reveal" style="transition-delay: 400ms;">
+                            <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center mb-4">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-textPrimary mb-2">Async Processing</h3>
+                            <p class="text-sm text-textSecondary">Non-blocking internal job scheduler ensures endpoints respond under 200ms while executing heavy tasks.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Architecture Overview -->
+        <section id="architecture" class="py-20 bg-bgLight">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16 reveal">
+                    <h2 class="text-3xl font-bold text-textPrimary">Architecture Overview</h2>
+                    <p class="mt-4 text-lg text-textSecondary">A highly decoupled, state-machine driven orchestrator.</p>
+                </div>
+                
+                <div class="relative max-w-5xl mx-auto reveal">
+                    <div class="absolute top-1/2 left-0 w-full h-1 bg-borderLight -translate-y-1/2 hidden md:block z-0"></div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-6 relative z-10">
+                        <div class="bg-white rounded-lg p-5 border border-borderLight text-center shadow-sm card-lift">
+                            <div class="font-bold text-textPrimary mb-1">Client App</div>
+                            <div class="text-xs text-textSecondary">MedPath UI</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-5 border border-borderLight text-center shadow-sm card-lift border-b-4 border-b-primary">
+                            <div class="font-bold text-textPrimary mb-1">Context API</div>
+                            <div class="text-xs text-textSecondary">Intent & Validation</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-5 border border-borderLight text-center shadow-sm card-lift border-b-4 border-b-accent">
+                            <div class="font-bold text-textPrimary mb-1">Discovery Engine</div>
+                            <div class="text-xs text-textSecondary">Async Execution</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-5 border border-borderLight text-center shadow-sm card-lift border-b-4 border-b-purple-500">
+                            <div class="font-bold text-textPrimary mb-1">Ranking Engine</div>
+                            <div class="text-xs text-textSecondary">Determinism</div>
+                        </div>
+                        <div class="bg-white rounded-lg p-5 border border-borderLight text-center shadow-sm card-lift">
+                            <div class="font-bold text-textPrimary mb-1">JSON Response</div>
+                            <div class="text-xs text-textSecondary">Strict Types</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Core Features -->
+        <section id="features" class="py-20 bg-white border-y border-borderLight">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16 reveal">
+                    <h2 class="text-3xl font-bold text-textPrimary">Enterprise Capabilities</h2>
+                    <p class="mt-4 text-lg text-textSecondary">Engineered for production resilience and strict contract enforcement.</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Feature Cards -->
+                    <div class="p-6 border border-borderLight rounded-xl bg-bgLight hover:bg-white transition-colors card-lift reveal">
+                        <h3 class="font-bold text-textPrimary mb-2 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-primary"></span> Multi-turn Conversations
+                        </h3>
+                        <p class="text-sm text-textSecondary">Handles fragmented healthcare symptoms intelligently, preserving conversation state across API boundaries.</p>
+                    </div>
+                    
+                    <div class="p-6 border border-borderLight rounded-xl bg-bgLight hover:bg-white transition-colors card-lift reveal" style="transition-delay: 100ms;">
+                        <h3 class="font-bold text-textPrimary mb-2 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-accent"></span> Redis Session Management
+                        </h3>
+                        <p class="text-sm text-textSecondary">Stateless backend architecture using transient, sliding-TTL Redis sessions. Zero persistent database footprint.</p>
+                    </div>
+                    
+                    <div class="p-6 border border-borderLight rounded-xl bg-bgLight hover:bg-white transition-colors card-lift reveal" style="transition-delay: 200ms;">
+                        <h3 class="font-bold text-textPrimary mb-2 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-orange-500"></span> LLM Failover & Circuit Breakers
+                        </h3>
+                        <p class="text-sm text-textSecondary">Primary reasoning via Gemini. Transparent, instant failover to Mistral upon rate-limits or timeouts.</p>
+                    </div>
+
+                    <div class="p-6 border border-borderLight rounded-xl bg-bgLight hover:bg-white transition-colors card-lift reveal">
+                        <h3 class="font-bold text-textPrimary mb-2 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-purple-500"></span> Deterministic Validation
+                        </h3>
+                        <p class="text-sm text-textSecondary">Critical business logic and schema enforcement are executed securely in Python, not delegated entirely to an LLM.</p>
+                    </div>
+
+                    <div class="p-6 border border-borderLight rounded-xl bg-bgLight hover:bg-white transition-colors card-lift reveal" style="transition-delay: 100ms;">
+                        <h3 class="font-bold text-textPrimary mb-2 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-green-500"></span> Graceful Error Handling
+                        </h3>
+                        <p class="text-sm text-textSecondary">Standardized HTTP errors, safe unhandled exception catching in async loops, and informative failure states.</p>
+                    </div>
+
+                    <div class="p-6 border border-borderLight rounded-xl bg-bgLight hover:bg-white transition-colors card-lift reveal" style="transition-delay: 200ms;">
+                        <h3 class="font-bold text-textPrimary mb-2 flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-gray-800"></span> Production Observability
+                        </h3>
+                        <p class="text-sm text-textSecondary">Structured JSON logging, explicit correlation IDs across request traces, and Liveness probes.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Workflow Timeline -->
+        <section id="workflow" class="py-20 bg-bgLight">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16 reveal">
+                    <h2 class="text-3xl font-bold text-textPrimary">The Async Execution Lifecycle</h2>
+                    <p class="mt-4 text-lg text-textSecondary">How SWASTHYA AI CORE manages complex research in the background.</p>
+                </div>
+                
+                <div class="relative timeline-line">
+                    
+                    <div class="relative pl-12 mb-10 reveal">
+                        <div class="absolute left-[19px] top-1 w-3 h-3 bg-white border-2 border-primary rounded-full z-10"></div>
+                        <h4 class="text-lg font-bold text-textPrimary">Context Extraction</h4>
+                        <p class="text-textSecondary mt-1">The Context API securely analyzes the incoming message stream to build a compliant `PatientContext` schema.</p>
+                    </div>
+
+                    <div class="relative pl-12 mb-10 reveal">
+                        <div class="absolute left-[19px] top-1 w-3 h-3 bg-white border-2 border-primary rounded-full z-10"></div>
+                        <h4 class="text-lg font-bold text-textPrimary">Discovery Initialization</h4>
+                        <p class="text-textSecondary mt-1">If the context is sufficient, `POST /api/discovery/search` is invoked. A `task_id` is generated and returned immediately.</p>
+                    </div>
+
+                    <div class="relative pl-12 mb-10 reveal">
+                        <div class="absolute left-[19px] top-1 w-3 h-3 bg-white border-2 border-accent rounded-full z-10"></div>
+                        <h4 class="text-lg font-bold text-textPrimary">Background Execution</h4>
+                        <p class="text-textSecondary mt-1">The internal Job Executor spawns a non-blocking coroutine, scraping NABH databases and Maps without holding the HTTP connection hostage.</p>
+                    </div>
+
+                    <div class="relative pl-12 mb-10 reveal">
+                        <div class="absolute left-[19px] top-1 w-3 h-3 bg-white border-2 border-purple-500 rounded-full z-10"></div>
+                        <h4 class="text-lg font-bold text-textPrimary">Ranking & Explanation</h4>
+                        <p class="text-textSecondary mt-1">Discovered hospitals are deterministically ranked. The LLM generates human-readable explanations summarizing the rationale.</p>
+                    </div>
+
+                    <div class="relative pl-12 reveal">
+                        <div class="absolute left-[19px] top-1 w-3 h-3 bg-primary rounded-full z-10 shadow-[0_0_0_4px_rgba(37,99,235,0.2)]"></div>
+                        <h4 class="text-lg font-bold text-textPrimary">Task Completion</h4>
+                        <p class="text-textSecondary mt-1">Redis is updated to 100%. The client's polling mechanism captures the complete `RecommendationBundle` payload.</p>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: Tech Stack & 6: Challenges -->
+        <section id="stack" class="py-20 bg-white border-y border-borderLight">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
+                    
+                    <!-- Tech Stack -->
+                    <div class="reveal">
+                        <h2 class="text-3xl font-bold text-textPrimary mb-8">Modern Technology Stack</h2>
+                        <div class="flex flex-wrap gap-3">
+                            <span class="px-4 py-2 bg-bgLight border border-borderLight rounded-full text-sm font-semibold text-textPrimary shadow-sm hover:border-primary transition-colors">FastAPI</span>
+                            <span class="px-4 py-2 bg-bgLight border border-borderLight rounded-full text-sm font-semibold text-textPrimary shadow-sm hover:border-primary transition-colors">Python 3.10+</span>
+                            <span class="px-4 py-2 bg-bgLight border border-borderLight rounded-full text-sm font-semibold text-textPrimary shadow-sm hover:border-red-500 transition-colors">Redis</span>
+                            <span class="px-4 py-2 bg-bgLight border border-borderLight rounded-full text-sm font-semibold text-textPrimary shadow-sm hover:border-blue-500 transition-colors">Gemini / Mistral</span>
+                            <span class="px-4 py-2 bg-bgLight border border-borderLight rounded-full text-sm font-semibold text-textPrimary shadow-sm hover:border-green-500 transition-colors">Playwright</span>
+                            <span class="px-4 py-2 bg-bgLight border border-borderLight rounded-full text-sm font-semibold text-textPrimary shadow-sm hover:border-yellow-500 transition-colors">Google Maps</span>
+                            <span class="px-4 py-2 bg-bgLight border border-borderLight rounded-full text-sm font-semibold text-textPrimary shadow-sm hover:border-blue-400 transition-colors">Docker</span>
+                            <span class="px-4 py-2 bg-bgLight border border-borderLight rounded-full text-sm font-semibold text-textPrimary shadow-sm hover:border-purple-500 transition-colors">AsyncIO</span>
+                        </div>
+                        <p class="mt-6 text-textSecondary text-sm leading-relaxed">
+                            Built entirely on standard REST and async primitives. Zero bloat from heavy frameworks like LangChain. Dependency-isolated and optimized for Dockerized distribution.
+                        </p>
+                    </div>
+
+                    <!-- Engineering Challenges -->
+                    <div class="reveal">
+                        <h2 class="text-3xl font-bold text-textPrimary mb-8">Engineering Hard Problems</h2>
+                        <ul class="space-y-4">
+                            <li class="flex items-start">
+                                <svg class="w-5 h-5 text-accent mt-0.5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <div>
+                                    <strong class="text-textPrimary">Context Versioning:</strong> Managing sliding Redis state across multi-turn sessions without polluting older confirmed data via Delta extraction.
+                                </div>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-5 h-5 text-accent mt-0.5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <div>
+                                    <strong class="text-textPrimary">Browser Pooling:</strong> Optimizing Playwright Chromium lifecycle in a constrained Docker container to minimize RAM overhead.
+                                </div>
+                            </li>
+                            <li class="flex items-start">
+                                <svg class="w-5 h-5 text-accent mt-0.5 mr-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <div>
+                                    <strong class="text-textPrimary">Token Minimization:</strong> Abstracting prompts securely to reduce token ingestion by 60%, drastically accelerating Time-To-First-Token (TTFT).
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 7: Comparison -->
+        <section class="py-20 bg-bgLight">
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12 reveal">
+                    <h2 class="text-3xl font-bold text-textPrimary">Why this Architecture?</h2>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Bad -->
+                    <div class="bg-white border border-red-200 rounded-xl p-8 shadow-sm reveal">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-bold text-gray-900">Standard Chatbot Backend</h3>
+                            <span class="bg-red-100 text-red-700 text-xs font-bold px-3 py-1 rounded-full">Legacy</span>
+                        </div>
+                        <ul class="space-y-3 text-sm text-textSecondary">
+                            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> Relies solely on LLM hallucinations</li>
+                            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> Blocks HTTP response during API calls</li>
+                            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> Fails permanently on token limits</li>
+                            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> Messy unstructured text blobs</li>
+                        </ul>
+                    </div>
+
+                    <!-- Good -->
+                    <div class="bg-white border-2 border-primary rounded-xl p-8 shadow-md relative reveal" style="transition-delay: 200ms;">
+                        <div class="absolute -top-3 right-6 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full">SWASTHYA AI CORE</div>
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-bold text-gray-900">Orchestration Engine</h3>
+                        </div>
+                        <ul class="space-y-3 text-sm text-textSecondary font-medium">
+                            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Deterministic Python Validation</li>
+                            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Pure Non-Blocking Async Polling</li>
+                            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Instant Circuit-Breaker Failover</li>
+                            <li class="flex items-center gap-2"><svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Strictly typed Pydantic JSON contracts</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 8 & 9: API & Deployment -->
+        <section class="py-20 bg-white border-y border-borderLight">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                    <!-- API Overview -->
+                    <div class="lg:col-span-7 reveal">
+                        <h2 class="text-2xl font-bold text-textPrimary mb-6">Simple, Powerful API</h2>
+                        <div class="space-y-4">
+                            <div class="bg-bgLight border border-borderLight p-4 rounded-lg flex items-center justify-between card-lift">
+                                <div>
+                                    <h4 class="font-bold text-textPrimary text-sm">Context Parsing</h4>
+                                    <p class="text-xs text-textSecondary">Stateful clinical extraction</p>
+                                </div>
+                                <code class="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded">POST /api/context/analyze</code>
+                            </div>
+                            <div class="bg-bgLight border border-borderLight p-4 rounded-lg flex items-center justify-between card-lift">
+                                <div>
+                                    <h4 class="font-bold text-textPrimary text-sm">Task Initialization</h4>
+                                    <p class="text-xs text-textSecondary">Async discovery queue</p>
+                                </div>
+                                <code class="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded">POST /api/discovery/search</code>
+                            </div>
+                            <div class="bg-bgLight border border-borderLight p-4 rounded-lg flex items-center justify-between card-lift">
+                                <div>
+                                    <h4 class="font-bold text-textPrimary text-sm">Progress Tracking</h4>
+                                    <p class="text-xs text-textSecondary">Poll Redis completion state</p>
+                                </div>
+                                <code class="text-xs bg-gray-200 text-gray-800 px-2 py-1 rounded">GET /api/tasks/{id}/progress</code>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <a href="/docs" class="text-primary font-semibold text-sm hover:underline inline-flex items-center">
+                                View Complete Documentation <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Deployment -->
+                    <div class="lg:col-span-5 reveal" style="transition-delay: 200ms;">
+                        <h2 class="text-2xl font-bold text-textPrimary mb-6">Built for Render</h2>
+                        <div class="bg-gray-900 text-white p-8 rounded-xl shadow-lg relative overflow-hidden">
+                            <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-primary rounded-full opacity-20 blur-2xl"></div>
+                            <h3 class="text-xl font-bold mb-4">Single Container Architecture</h3>
+                            <p class="text-sm text-gray-300 mb-6 leading-relaxed">
+                                Deployed natively on Render Free. No separate workers required. The asynchronous job executor is packaged directly into the Uvicorn web instance. Fully Dockerized and scalable.
+                            </p>
+                            <ul class="text-sm space-y-2 text-gray-400">
+                                <li class="flex items-center gap-2">✓ Automated Health Checks</li>
+                                <li class="flex items-center gap-2">✓ Dynamic Port Binding</li>
+                                <li class="flex items-center gap-2">✓ Linux Dependency Optimization</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-bgLight pt-12 pb-8 border-t border-borderLight">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                
+                <div class="flex items-center gap-2">
+                    <svg class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    </svg>
+                    <span class="font-bold text-textPrimary">SWASTHYA AI CORE</span>
+                </div>
+                
+                <div class="flex space-x-6 text-sm">
+                    <a href="https://github.com/vibieprince/Swasthya-AI-CORE" target="_blank" class="text-textSecondary hover:text-primary transition-colors">GitHub</a>
+                    <a href="https://linkedin.com/in/vibieprince" target="_blank" class="text-textSecondary hover:text-primary transition-colors">LinkedIn</a>
+                    <a href="mailto:contact@example.com" class="text-textSecondary hover:text-primary transition-colors">Email</a>
+                </div>
+            </div>
+            
+            <div class="mt-8 border-t border-gray-200 pt-8 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500">
+                <p>&copy; 2026 SWASTHYA AI CORE. Developed by Prince Singh.</p>
+                <p class="mt-2 md:mt-0">Open Source MIT License</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Interactive Scripts -->
+    <script>
+        // Intersection Observer for scroll animations
+        document.addEventListener('DOMContentLoaded', () => {
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.1
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('.reveal').forEach(element => {
+                observer.observe(element);
+            });
+            
+            // Initial trigger for elements already in viewport
+            setTimeout(() => {
+                document.querySelectorAll('.reveal').forEach(el => {
+                    const rect = el.getBoundingClientRect();
+                    if(rect.top < window.innerHeight) {
+                        el.classList.add('active');
+                    }
+                });
+            }, 100);
+        });
+
+        // Sticky Navbar styling on scroll
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 10) {
+                nav.classList.add('shadow-sm');
+                nav.classList.replace('bg-white/90', 'bg-white/95');
+            } else {
+                nav.classList.remove('shadow-sm');
+                nav.classList.replace('bg-white/95', 'bg-white/90');
+            }
+        });
+    </script>
+</body>
+</html>

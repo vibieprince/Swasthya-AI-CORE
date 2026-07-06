@@ -5,7 +5,8 @@ Configures FastAPI, mounts routers, and manages the application lifespan.
 """
 
 from __future__ import annotations
-
+from pathlib import Path
+from fastapi.responses import FileResponse
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -25,7 +26,8 @@ from src.infrastructure.redis.client import close_redis, initialize_redis
 
 logger = get_logger(__name__)
 
-
+# Project root directory
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
@@ -78,7 +80,7 @@ def create_app() -> FastAPI:
         description="Stateless Healthcare Intelligence Engine",
         version="1.0.2",
         lifespan=lifespan,
-        docs_url="/docs" if not settings.is_production else None,
+        docs_url="/test" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,
         openapi_url="/openapi.json" if not settings.is_production else None,
     )
@@ -105,6 +107,20 @@ def create_app() -> FastAPI:
     async def health_check() -> dict[str, str]:
         """Liveness probe."""
         return {"status": "healthy"}
+
+    @app.get("/", include_in_schema=False)
+    async def homepage():
+        return FileResponse(
+            PROJECT_ROOT / "index.html",
+            media_type="text/html"
+        )
+    
+    @app.get("/docs", include_in_schema=False)
+    async def documentation():
+        return FileResponse(
+            PROJECT_ROOT / "docs.html",
+            media_type="text/html"
+        )
 
     return app
 
