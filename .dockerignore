@@ -30,7 +30,6 @@ htmlcov/
 .env.*
 !.env.example
 tests/
-docs.html
 README.md
 docker-compose.yml
 .idea/

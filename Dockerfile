@@ -28,9 +28,13 @@ RUN pip install --no-cache-dir --upgrade pip && \
 RUN playwright install chromium --with-deps && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy application source
+# Copy application
 COPY pyproject.toml .
-COPY src/ ./src/
+COPY src ./src
+
+# Copy static pages
+COPY index.html .
+COPY docs.html .
 
 # Install the package without reinstalling dependencies
 RUN pip install . --no-deps
