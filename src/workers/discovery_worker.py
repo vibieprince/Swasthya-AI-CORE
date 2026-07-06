@@ -110,11 +110,15 @@ class DiscoveryWorker:
 
             # ── 70%: Ranking ──────────────────────────────────────────────────
             await update_task_progress(task_id, TaskStatus.RUNNING, 70, "Ranking")
+            t_rank = time.monotonic()
             ranked = self._ranker.rank(candidates, request)
+            rank_ms = int((time.monotonic() - t_rank) * 1000)
 
             # ── 85%: Explanations ─────────────────────────────────────────────
             await update_task_progress(task_id, TaskStatus.RUNNING, 85, "Explanation")
+            t_exp = time.monotonic()
             explained = await self._explainer.explain_all(ranked, request)
+            exp_ms = int((time.monotonic() - t_exp) * 1000)
 
             # ── 100%: Done ────────────────────────────────────────────────────
             sources_used = sorted({c.source for c in candidates}) if candidates else []
@@ -138,6 +142,10 @@ class DiscoveryWorker:
                 extra={
                     "task_id": task_id,
                     "latency_ms": bundle.pipeline_latency_ms,
+                    "timings": {
+                        "ranking_ms": rank_ms,
+                        "explanation_ms": exp_ms,
+                    },
                     "recommendations": len(explained),
                 },
             )
@@ -197,9 +205,11 @@ async def run_worker() -> None:
 
     from src.infrastructure.http.client import close_http_client, initialize_http_client
     from src.infrastructure.redis.client import close_redis, initialize_redis
+    from src.infrastructure.browser.pool import initialize_browser, close_browser
 
     await initialize_http_client()
     await initialize_redis()
+    await initialize_browser()
 
     gateway = LLMGateway()
     worker = DiscoveryWorker(gateway)
@@ -231,6 +241,10 @@ async def run_worker() -> None:
             await close_http_client()
         except Exception as exc:
             logger.warning("Error closing HTTP client", extra={"error": str(exc)})
+        try:
+            await close_browser()
+        except Exception as exc:
+            logger.warning("Error closing browser", extra={"error": str(exc)})
         try:
             await close_redis()
         except Exception as exc:

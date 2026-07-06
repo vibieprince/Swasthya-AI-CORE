@@ -6,20 +6,19 @@ Bandwidth-optimized, resilient multi-engine scraper.
 Scraping hierarchy (Issue 4 — HTTPX first, browser only as last resort):
     1. HTTPX + BeautifulSoup (pure HTTP — zero browser overhead)
     2. Playwright with resource blocking (Issue 5 — blocks images/fonts/media/ads)
-    3. Selenium with minimal options (last resort)
 
 Early-exit optimization (Issue 4):
     After HTTPX parsing, check if enough clinical data was extracted.
     If yes, skip browser entirely.
 
-Playwright optimization (Issue 5):
+Playwright optimization (Issue 5 & 2):
+    Uses a centralized Browser Pool instead of launching chromium per scrape.
     Blocks: images, fonts, media, stylesheets, analytics, ad networks.
     Downloads: HTML + essential XHR only (~95% bandwidth reduction).
 
 Timeouts (Issue 9):
-    HTTPX: 10s
-    Playwright: 15s
-    Selenium: 15s
+    HTTPX: 5s
+    Playwright: 5s
 """
 
 from __future__ import annotations
@@ -32,6 +31,8 @@ from bs4 import BeautifulSoup
 
 from src.common.logging import get_logger
 from src.config.settings import get_settings
+from src.infrastructure.browser.pool import get_browser_context
+
 
 logger = get_logger(__name__)
 
@@ -65,7 +66,7 @@ class HospitalScraper:
     """
     Multi-engine hospital website scraper with aggressive bandwidth optimisation.
 
-    Engine order: HTTPX+BS4 → Playwright → Selenium
+    Engine order: HTTPX+BS4 → Playwright
     Upgrades to browser only when HTML content is insufficient.
     """
 
@@ -95,11 +96,6 @@ class HospitalScraper:
         if playwright_content:
             return playwright_content
 
-        # ── Engine 3: Selenium (last resort) ──────────────────────────────────
-        selenium_content = await self._scrape_selenium(url, task_id)
-        if selenium_content:
-            return selenium_content
-
         # Return partial HTTPX content if we have it, rather than nothing
         return content
 
@@ -114,8 +110,9 @@ class HospitalScraper:
         return found >= _CLINICAL_SIGNAL_THRESHOLD
 
     async def _scrape_httpx(self, url: str, task_id: str) -> Optional[str]:
-        """Pure HTTP scrape using HTTPX + BeautifulSoup. Timeout: 10s (Issue 9)."""
+        """Pure HTTP scrape using HTTPX + BeautifulSoup. Timeout: 5s."""
         from src.infrastructure.http.client import get_http_client
+        import httpx
 
         client = get_http_client()
         try:
@@ -130,7 +127,7 @@ class HospitalScraper:
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                     "Accept-Language": "en-IN,en;q=0.9,hi;q=0.8",
                 },
-                timeout=10.0,  # Issue 9
+                timeout=5.0,  # Strict fast timeout (Issue 9)
                 follow_redirects=True,
             )
             if response.status_code == 200:
@@ -139,6 +136,10 @@ class HospitalScraper:
                 "HTTPX returned non-200",
                 extra={"url": url, "status": response.status_code, "task_id": task_id},
             )
+        except httpx.TimeoutException:
+            logger.debug("HTTPX scraping timed out — site likely offline", extra={"url": url, "task_id": task_id})
+        except httpx.ConnectError:
+            logger.debug("HTTPX connection failed — site likely offline", extra={"url": url, "task_id": task_id})
         except Exception as exc:
             logger.debug(
                 "HTTPX scraping failed",
@@ -148,43 +149,19 @@ class HospitalScraper:
 
     async def _scrape_playwright(self, url: str, task_id: str) -> Optional[str]:
         """
-        Playwright scrape with aggressive resource blocking.
+        Playwright scrape using shared Browser Pool.
 
         Blocks all non-essential resources to cut bandwidth by ~95% (Issue 5).
-        Timeout: 15s per operation (Issue 9).
+        Timeout: 5s per operation (Issue 9).
         """
         try:
-            from playwright.async_api import async_playwright, Route
+            from playwright.async_api import Route
+            
+            context = await get_browser_context()
+            page = await context.new_page()
 
-            async with async_playwright() as pw:
-                browser = await pw.chromium.launch(
-                    headless=True,
-                    args=[
-                        "--no-sandbox",
-                        "--disable-setuid-sandbox",
-                        "--disable-dev-shm-usage",
-                        "--disable-gpu",
-                        "--disable-background-networking",
-                        "--disable-default-apps",
-                        "--disable-extensions",
-                        "--disable-sync",
-                        "--no-first-run",
-                    ],
-                )
-                context = await browser.new_context(
-                    user_agent=(
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/120.0.0.0 Safari/537.36"
-                    ),
-                    java_script_enabled=True,
-                    bypass_csp=True,
-                )
-
-                page = await context.new_page()
-
-                # Block non-essential resources (Issue 5)
-                async def _block_resources(route: Route) -> None:
+            # Block non-essential resources (Issue 5)
+            async def _block_resources(route: Route) -> None:
                     resource_type = route.request.resource_type
                     request_url = route.request.url
 
@@ -200,21 +177,20 @@ class HospitalScraper:
 
                     await route.continue_()
 
-                await page.route("**/*", _block_resources)
+            await page.route("**/*", _block_resources)
 
-                try:
-                    await asyncio.wait_for(
-                        page.goto(url, wait_until="domcontentloaded"),
-                        timeout=15.0,  # Issue 9
-                    )
-                    # Brief pause for essential XHR to complete
-                    await asyncio.sleep(1)
-                    html = await page.content()
-                    return self._extract_text(html)[:5000]
-                finally:
-                    await page.close()
-                    await context.close()
-                    await browser.close()
+            try:
+                await asyncio.wait_for(
+                    page.goto(url, wait_until="domcontentloaded"),
+                    timeout=5.0,  # Issue 9 strict timeout
+                )
+                # Brief pause for essential XHR to complete
+                await asyncio.sleep(0.5)
+                html = await page.content()
+                return self._extract_text(html)[:5000]
+            finally:
+                await page.close()
+                await context.close()
 
         except asyncio.TimeoutError:
             logger.debug("Playwright timed out", extra={"url": url, "task_id": task_id})
@@ -224,58 +200,6 @@ class HospitalScraper:
                 extra={"url": url, "task_id": task_id, "error": str(exc)[:150]},
             )
         return None
-
-    async def _scrape_selenium(self, url: str, task_id: str) -> Optional[str]:
-        """Selenium scrape running in a thread executor. Timeout: 15s (Issue 9)."""
-        try:
-            loop = asyncio.get_event_loop()
-            return await asyncio.wait_for(
-                loop.run_in_executor(None, self._selenium_sync, url),
-                timeout=15.0,  # Issue 9
-            )
-        except asyncio.TimeoutError:
-            logger.debug("Selenium timed out", extra={"url": url, "task_id": task_id})
-        except Exception as exc:
-            logger.debug(
-                "Selenium scraping failed",
-                extra={"url": url, "task_id": task_id, "error": str(exc)[:150]},
-            )
-        return None
-
-    def _selenium_sync(self, url: str) -> Optional[str]:
-        """Synchronous Selenium scraping (runs in executor thread)."""
-        driver = None
-        try:
-            from selenium import webdriver
-            from selenium.webdriver.chrome.options import Options
-
-            options = Options()
-            options.add_argument("--headless")
-            options.add_argument("--no-sandbox")
-            options.add_argument("--disable-dev-shm-usage")
-            options.add_argument("--disable-gpu")
-            options.add_argument("--window-size=1280,720")
-            # Disable images and CSS to reduce bandwidth (Issue 4)
-            prefs = {
-                "profile.managed_default_content_settings.images": 2,
-                "profile.default_content_setting_values.notifications": 2,
-                "profile.managed_default_content_settings.stylesheets": 2,
-            }
-            options.add_experimental_option("prefs", prefs)
-
-            driver = webdriver.Chrome(options=options)
-            driver.set_page_load_timeout(15)  # Issue 9
-            driver.get(url)
-            html = driver.page_source
-            return self._extract_text(html)[:5000]
-        except Exception:
-            return None
-        finally:
-            if driver:
-                try:
-                    driver.quit()
-                except Exception:
-                    pass
 
     @staticmethod
     def _extract_text(html: str) -> str:

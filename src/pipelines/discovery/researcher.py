@@ -19,10 +19,9 @@ from src.common.logging import get_logger
 from src.domain.discovery.models import HospitalCandidate
 from src.pipelines.discovery.hospital_scraper import HospitalScraper
 
-logger = get_logger(__name__)
+from src.config.settings import get_settings
 
-_RESEARCH_CONCURRENCY = 4
-_RESEARCH_TIMEOUT = 10.0  # Issue 9: per-hospital research timeout
+logger = get_logger(__name__)
 
 
 class HospitalResearcher:
@@ -35,6 +34,7 @@ class HospitalResearcher:
 
     def __init__(self, scraper: HospitalScraper) -> None:
         self._scraper = scraper
+        self._settings = get_settings()
 
     async def research_all(
         self,
@@ -50,7 +50,7 @@ class HospitalResearcher:
         if not candidates:
             return []
 
-        semaphore = asyncio.Semaphore(_RESEARCH_CONCURRENCY)
+        semaphore = asyncio.Semaphore(self._settings.research_concurrency)
 
         async def _research_safe(c: HospitalCandidate) -> HospitalCandidate:
             async with semaphore:
@@ -58,7 +58,7 @@ class HospitalResearcher:
                     # Per-candidate timeout wrapper (Issue 9)
                     return await asyncio.wait_for(
                         self._research(c, task_id),
-                        timeout=_RESEARCH_TIMEOUT,
+                        timeout=self._settings.research_timeout_seconds,
                     )
                 except asyncio.TimeoutError:
                     logger.warning(

@@ -69,9 +69,16 @@ class Settings(BaseSettings):
     gemini_timeout_seconds: int = Field(default=30, ge=10, le=120)   # Issue 9
     mistral_timeout_seconds: int = Field(default=30, ge=10, le=120)  # Issue 9
 
-    # ── Scraping ───────────────────────────────────────────────────────────────
-    scraper_timeout_seconds: int = Field(default=10, ge=5, le=60)    # Issue 9: per-engine
-    scraper_max_concurrent: int = Field(default=4, ge=1, le=16)
+    # ── Scraping & Pipeline Concurrency ────────────────────────────────────────
+    scraper_timeout_seconds: float = Field(default=5.0, ge=1.0, le=30.0)
+    research_concurrency: int = Field(default=5, ge=1, le=16)
+    shortlist_size: int = Field(default=8, ge=1, le=20)
+
+    # ── Pipeline Timeouts ──────────────────────────────────────────────────────
+    maps_timeout_seconds: float = Field(default=8.0, ge=1.0)
+    tavily_timeout_seconds: float = Field(default=12.0, ge=1.0)
+    nabh_timeout_seconds: float = Field(default=8.0, ge=1.0)
+    research_timeout_seconds: float = Field(default=6.0, ge=1.0)
 
     @field_validator("gemini_api_key", "mistral_api_key", "tavily_api_key", "google_maps_api_key", mode="before")
     @classmethod

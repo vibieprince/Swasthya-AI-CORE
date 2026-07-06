@@ -37,40 +37,31 @@ class RecommendationExplainer:
         ranked_hospitals: list[RankedHospital],
         request: DiscoveryRequest,
     ) -> list[RankedHospital]:
-        """Generate explanations for all ranked hospitals concurrently."""
+        """Generate explanations for all ranked hospitals in a single batched LLM call."""
         
         if not ranked_hospitals:
             return []
 
         total_ranked = len(ranked_hospitals)
-        semaphore = asyncio.Semaphore(4)
-
-        async def _explain_one(hospital: RankedHospital) -> RankedHospital:
-            async with semaphore:
-                return await self._explain(hospital, total_ranked, request)
-
-        explained = await asyncio.gather(*[_explain_one(h) for h in ranked_hospitals])
-        return list(explained)
-
-    async def _explain(
-        self,
-        hospital: RankedHospital,
-        total_ranked: int,
-        request: DiscoveryRequest,
-    ) -> RankedHospital:
-        """Generate explanation for a single ranked hospital."""
+        batch_ranking_data = ""
+        
+        for h in ranked_hospitals:
+            batch_ranking_data += (
+                f"HOSPITAL NAME: {h.hospital_name}\n"
+                f"Name: {h.hospital_name}\n"
+                f"Rank: {h.rank} of {total_ranked}\n"
+                f"Trust Score: {round(h.scores.trust_score, 2)}\n"
+                f"Clinical Suitability: {round(h.scores.clinical_suitability_score, 2)}\n"
+                f"Affordability Score: {round(h.scores.affordability_score, 2)}\n"
+                f"Key Strengths: {', '.join(h.top_reasons)}\n"
+                f"Known Limitations: {', '.join(h.cautions)}\n"
+                f"---------------------------------------------------\n"
+            )
 
         llm_request = LLMRequest(
             system_prompt=EXPLAIN_SYSTEM,
             user_prompt=EXPLAIN_USER_TEMPLATE.format(
-                hospital_name=hospital.hospital_name,
-                rank=hospital.rank,
-                total_ranked=total_ranked,
-                trust_score=round(hospital.scores.trust_score, 2),
-                clinical_suitability=round(hospital.scores.clinical_suitability_score, 2),
-                affordability_score=round(hospital.scores.affordability_score, 2),
-                key_strengths=", ".join(hospital.top_reasons),
-                known_limitations=", ".join(hospital.cautions),
+                batch_ranking_data=batch_ranking_data,
                 specialty=request.specialty.value,
                 language_code=request.language_code,
             ),
@@ -80,29 +71,40 @@ class RecommendationExplainer:
 
         try:
             response = await self._gateway.complete(llm_request, pipeline_stage="ranking_explain")
-            p = response.parsed
+            batch_parsed = response.parsed
             
-            hospital.recommendation_summary = p.get("recommendation_summary", "")
-            hospital.recommendation_summary_english = p.get("recommendation_summary_english", "")
-            hospital.why_this_rank = p.get("why_this_rank", "")
-            
-            if p.get("top_reasons"):
-                hospital.top_reasons = p.get("top_reasons")
+            for h in ranked_hospitals:
+                p = batch_parsed.get(h.hospital_name, {})
+                if not p:
+                    # Fallback if omitted by LLM
+                    h.recommendation_summary = f"Recommended based on clinical suitability for {request.specialty.value}."
+                    h.recommendation_summary_english = h.recommendation_summary
+                    h.why_this_rank = f"Ranked #{h.rank} based on overall match."
+                    h.confidence_explanation = "Based on available data."
+                    continue
+                    
+                h.recommendation_summary = p.get("recommendation_summary", "")
+                h.recommendation_summary_english = p.get("recommendation_summary_english", "")
+                h.why_this_rank = p.get("why_this_rank", "")
                 
-            if p.get("cautions"):
-                hospital.cautions = p.get("cautions")
-                
-            hospital.confidence_explanation = p.get("confidence_explanation", "")
+                if p.get("top_reasons"):
+                    h.top_reasons = p.get("top_reasons")
+                    
+                if p.get("cautions"):
+                    h.cautions = p.get("cautions")
+                    
+                h.confidence_explanation = p.get("confidence_explanation", "")
 
         except Exception as exc:
             logger.warning(
-                "Failed to generate explanation for hospital",
-                extra={"hospital": hospital.hospital_name, "error": str(exc)},
+                "Failed to generate batch explanations",
+                extra={"error": str(exc)},
             )
-            # Fallback text if explanation fails
-            hospital.recommendation_summary = f"Recommended based on clinical suitability for {request.specialty.value}."
-            hospital.recommendation_summary_english = hospital.recommendation_summary
-            hospital.why_this_rank = f"Ranked #{hospital.rank} based on overall match."
-            hospital.confidence_explanation = "Based on available data."
+            # Fallback text if explanation fails entirely
+            for h in ranked_hospitals:
+                h.recommendation_summary = f"Recommended based on clinical suitability for {request.specialty.value}."
+                h.recommendation_summary_english = h.recommendation_summary
+                h.why_this_rank = f"Ranked #{h.rank} based on overall match."
+                h.confidence_explanation = "Based on available data."
 
-        return hospital
+        return ranked_hospitals

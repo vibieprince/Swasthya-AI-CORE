@@ -55,17 +55,11 @@ from src.pipelines.discovery.review_extractor import ReviewExtractor
 from src.pipelines.discovery.strategy import SearchStrategyGenerator
 from src.pipelines.discovery.tavily_search import TavilySearcher
 
+from src.config.settings import get_settings
+
 logger = get_logger(__name__)
 
 ProgressCallback = Callable[[int, str], Awaitable[None]]
-
-# Shortlist size before research: scrape only top N candidates (Issue 6)
-_SHORTLIST_SIZE = 8
-
-# Explicit per-source timeouts in seconds (Issue 9)
-_MAPS_TIMEOUT = 8.0
-_TAVILY_TIMEOUT = 12.0
-_NABH_TIMEOUT = 8.0
 
 
 class DiscoveryOrchestrator:
@@ -85,6 +79,7 @@ class DiscoveryOrchestrator:
         self._review_extractor = ReviewExtractor()
         self._facility_extractor = FacilityExtractor()
         self._summarizer = GeminiSummarizer(gateway)
+        self._settings = get_settings()
 
     async def discover(
         self,
@@ -110,7 +105,15 @@ class DiscoveryOrchestrator:
                     logger.warning("Progress callback failed", extra={"error": str(exc)})
 
         t_start = time.monotonic()
+        t_stage = t_start
         task_id = request.task_id
+        timings: dict[str, float] = {}
+
+        def _record_timing(stage_name: str) -> None:
+            nonlocal t_stage
+            now = time.monotonic()
+            timings[stage_name] = round((now - t_stage) * 1000, 1)
+            t_stage = now
 
         logger.info(
             "Discovery pipeline started",
@@ -119,6 +122,7 @@ class DiscoveryOrchestrator:
 
         # ── Stage: Planning Search (10%) ───────────────────────────────────────
         strategy = await self._strategy_gen.generate(request)
+        _record_timing("planning")
 
         # ── Stage: Google Places Search (25%) ──────────────────────────────────
         await _update(25, "Searching")
@@ -126,24 +130,26 @@ class DiscoveryOrchestrator:
         try:
             maps_candidates = await asyncio.wait_for(
                 self._maps.search(strategy, request),
-                timeout=_MAPS_TIMEOUT,
+                timeout=self._settings.maps_timeout_seconds,
             )
         except asyncio.TimeoutError:
             logger.warning("Google Maps search timed out", extra={"task_id": task_id})
         except Exception as exc:
             logger.warning("Google Maps search failed", extra={"task_id": task_id, "error": str(exc)})
+        _record_timing("maps_search")
 
         # ── Stage: Tavily Search (40%) ─────────────────────────────────────────
         tavily_candidates: list[HospitalCandidate] = []
         try:
             tavily_candidates = await asyncio.wait_for(
                 self._tavily.search(strategy, task_id),
-                timeout=_TAVILY_TIMEOUT,
+                timeout=self._settings.tavily_timeout_seconds,
             )
         except asyncio.TimeoutError:
             logger.warning("Tavily search timed out", extra={"task_id": task_id})
         except Exception as exc:
             logger.warning("Tavily search failed", extra={"task_id": task_id, "error": str(exc)})
+        _record_timing("tavily_search")
 
         # ── Stage: NABH Search (parallel, graceful degradation) ────────────────
         nabh_candidates: list[HospitalCandidate] = []
@@ -154,12 +160,13 @@ class DiscoveryOrchestrator:
                     specialty=request.specialty.value,
                     task_id=task_id,
                 ),
-                timeout=_NABH_TIMEOUT,
+                timeout=self._settings.nabh_timeout_seconds,
             )
         except asyncio.TimeoutError:
             logger.warning("NABH search timed out", extra={"task_id": task_id})
         except Exception as exc:
             logger.warning("NABH search failed — continuing", extra={"task_id": task_id, "error": str(exc)})
+        _record_timing("nabh_search")
 
         all_candidates = maps_candidates + tavily_candidates + nabh_candidates
 
@@ -206,9 +213,11 @@ class DiscoveryOrchestrator:
         # Deep research: scrape only shortlisted hospitals (Issue 6)
         # return_exceptions=True inside researcher ensures single failures don't kill pipeline (Issue 3)
         researched = await self._researcher.research_all(shortlisted, task_id)
+        _record_timing("research")
 
         # ── Stage: LLM Summarization ───────────────────────────────────────────
         final_candidates = await self._summarizer.summarize_all(researched, request)
+        _record_timing("summarization")
 
         total_latency = int((time.monotonic() - t_start) * 1000)
         logger.info(
@@ -216,6 +225,7 @@ class DiscoveryOrchestrator:
             extra={
                 "task_id": task_id,
                 "total_latency_ms": total_latency,
+                "timings_ms": timings,
                 "final_candidate_count": len(final_candidates),
             },
         )
@@ -258,4 +268,4 @@ class DiscoveryOrchestrator:
             return score
 
         scored = sorted(candidates, key=_score, reverse=True)
-        return scored[:_SHORTLIST_SIZE]
+        return scored[:self._settings.shortlist_size]
