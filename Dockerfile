@@ -32,8 +32,8 @@ RUN playwright install chromium --with-deps && \
 COPY pyproject.toml .
 COPY src/ ./src/
 
-# Install the package in editable mode without reinstalling dependencies
-RUN pip install -e . --no-deps
+# Install the package without reinstalling dependencies
+RUN pip install . --no-deps
 
 # Create a non-root user for security
 RUN useradd -m appuser && chown -R appuser /app /ms-playwright
@@ -46,5 +46,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request, os; urllib.request.urlopen(f'http://localhost:{os.environ.get(\"PORT\", 8000)}/health')" || exit 1
 
-# Start Uvicorn via python -m (production best practice)
-CMD python -m uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Start Uvicorn via shell to properly expand PORT variable
+CMD ["sh", "-c", "python -m uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
