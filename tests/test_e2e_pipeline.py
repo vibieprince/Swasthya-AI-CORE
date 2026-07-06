@@ -52,6 +52,7 @@ async def run_e2e_test():
         log("\n[1/5] Calling Context API...")
 
         query = (
+            # "Hello"
             "My father has diabetes and severe chest pain since 30 minutes. "
             "We are near Pari Chowk, Greater Noida. "
             "Budget is around ₹3 lakh. "
@@ -207,15 +208,12 @@ async def run_e2e_test():
 
             log(f"{i}. {hospital.get('hospital_name')}")
 
-            log("Score :", hospital.get("scores", {}).get("clinical_suitability_score", hospital.get("final_score")))
+            log("Score :", hospital.get("overall_score", 0.0))
 
-            log(
-                "Reason:",
-                hospital.get(
-                    "recommendation_summary_english",
-                    hospital.get("recommendation_summary", "")
-                )
-            )
+            log("Reason:", hospital.get("summary", ""))
+            
+            if hospital.get("pros"):
+                log("Pros  :", ", ".join(hospital.get("pros")))
 
         ####################################################################
         # STEP 5

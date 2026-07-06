@@ -15,6 +15,7 @@ This behaviour is completely transparent to calling code.
 
 from __future__ import annotations
 
+import asyncio
 import time
 
 from src.common.exceptions import (
@@ -48,6 +49,13 @@ class LLMGateway:
     ) -> None:
         self._primary: BaseLLMProvider = primary or GeminiProvider()
         self._secondary: BaseLLMProvider = secondary or MistralProvider()
+        
+        # ── Circuit Breaker State ──────────────────────────────────────────────
+        self._consecutive_failures = 0
+        self._cooldown_until = 0.0
+        self._lock = asyncio.Lock()
+        self._failure_threshold = 2
+        self._cooldown_duration_sec = 300.0  # 5 minutes
 
     async def complete(
         self,
@@ -69,6 +77,19 @@ class LLMGateway:
         """
         t_start = time.monotonic()
 
+        # ── Check Circuit Breaker ──────────────────────────────────────────────
+        if t_start < self._cooldown_until:
+            # Circuit is open — skip primary entirely
+            logger.warning(
+                "Circuit breaker OPEN — skipping primary provider",
+                extra={
+                    "primary_provider": self._primary.provider_name,
+                    "pipeline_stage": pipeline_stage,
+                    "cooldown_remaining": round(self._cooldown_until - t_start, 1)
+                }
+            )
+            return await self._execute_secondary(request, pipeline_stage, t_start, "Circuit Breaker OPEN")
+
         # ── Attempt Primary (Gemini) ───────────────────────────────────────────
         try:
             response = await self._primary.complete(request)
@@ -83,6 +104,11 @@ class LLMGateway:
                     "failover": False,
                 },
             )
+            # Reset circuit breaker on success
+            if self._consecutive_failures > 0:
+                async with self._lock:
+                    self._consecutive_failures = 0
+
             return response
 
         except (LLMProviderError, LLMInvalidResponseError) as primary_exc:
@@ -92,6 +118,21 @@ class LLMGateway:
                 if hasattr(primary_exc, "message")
                 else str(primary_exc)
             )
+            
+            # Trip circuit breaker
+            async with self._lock:
+                self._consecutive_failures += 1
+                if self._consecutive_failures >= self._failure_threshold:
+                    self._cooldown_until = time.monotonic() + self._cooldown_duration_sec
+                    logger.error(
+                        "Circuit breaker TRIPPED",
+                        extra={
+                            "provider": self._primary.provider_name,
+                            "threshold": self._failure_threshold,
+                            "cooldown_seconds": self._cooldown_duration_sec
+                        }
+                    )
+
             logger.warning(
                 "Primary LLM provider failed — activating failover",
                 extra={
@@ -102,8 +143,17 @@ class LLMGateway:
                     "pipeline_stage": pipeline_stage,
                 },
             )
+            
+            return await self._execute_secondary(request, pipeline_stage, t_start, failover_reason)
 
-        # ── Attempt Secondary (Mistral) ────────────────────────────────────────
+    async def _execute_secondary(
+        self,
+        request: LLMRequest,
+        pipeline_stage: str,
+        t_start: float,
+        failover_reason: str,
+    ) -> LLMResponse:
+        """Execute the secondary provider and handle its failures."""
         try:
             response = await self._secondary.complete(request)
             # Annotate the response with failover metadata

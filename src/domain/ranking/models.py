@@ -15,8 +15,8 @@ from pydantic import BaseModel, Field
 class CostRange(BaseModel):
     """Estimated cost range for a hospital in INR."""
 
-    min_inr: Optional[int] = None
-    max_inr: Optional[int] = None
+    min_inr: Optional[int] = Field(default=None)
+    max_inr: Optional[int] = Field(default=None)
     currency: str = "INR"
 
 
@@ -44,40 +44,35 @@ class RankedHospital(BaseModel):
     hospital_name: str
     hospital_type: str
 
-    # ── Location (mandatory when resolved) ────────────────────────────────────
-    formatted_address: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-    distance_km: Optional[float] = None
-    estimated_travel_time_minutes: Optional[int] = None
-    google_maps_place_id: Optional[str] = None
-    google_maps_url: Optional[str] = None
-    city: Optional[str] = None
-    state: Optional[str] = None
-    pincode: Optional[str] = None
+    # ── Location ─────────────────────────────────────────────────────────────
+    formatted_address: Optional[str] = Field(default=None)
+    latitude: Optional[float] = Field(default=None, exclude=True)
+    longitude: Optional[float] = Field(default=None, exclude=True)
+    distance_km: Optional[float] = Field(default=None)
+    estimated_travel_time_minutes: Optional[int] = Field(default=None)
+    google_maps_place_id: Optional[str] = Field(default=None, exclude=True)
+    google_maps_url: Optional[str] = Field(default=None, exclude=True)
 
     # ── Contact ────────────────────────────────────────────────────────────────
-    contact_number: Optional[str] = None
-    website: Optional[str] = None
+    contact_number: Optional[str] = Field(default=None)
+    website: Optional[str] = Field(default=None)
 
     # ── Quality Signals ────────────────────────────────────────────────────────
     accreditations: list[str] = Field(default_factory=list)
-    overall_rating: Optional[float] = None
-    review_count: Optional[int] = None
+    overall_rating: Optional[float] = Field(default=None)
+    review_count: Optional[int] = Field(default=None)
     has_emergency: bool = False
     has_icu: bool = False
-    estimated_cost_range: CostRange = Field(default_factory=CostRange)
+    estimated_cost_range: Optional[CostRange] = Field(default=None)
 
     # ── Scoring ────────────────────────────────────────────────────────────────
-    scores: RankingScores
+    overall_score: float = Field(ge=0.0, le=1.0)
+    scores: RankingScores = Field(exclude=True)
 
     # ── Explainability ─────────────────────────────────────────────────────────
-    recommendation_summary: str
-    recommendation_summary_english: str
-    why_this_rank: str
-    top_reasons: list[str] = Field(default_factory=list)
-    cautions: list[str] = Field(default_factory=list)
-    confidence_explanation: str = ""
+    summary: str
+    pros: list[str] = Field(default_factory=list)
+    cons: list[str] = Field(default_factory=list)
 
 
 class RecommendationBundle(BaseModel):
@@ -92,7 +87,25 @@ class RecommendationBundle(BaseModel):
     specialty: str
     location_searched: str
     recommendations: list[RankedHospital] = Field(default_factory=list)
-    total_candidates_evaluated: int = 0
-    search_depth_used: str = "standard"
-    pipeline_latency_ms: int = 0
-    sources_used: list[str] = Field(default_factory=list)
+    
+    # Internal logging metadata (excluded from public response)
+    total_candidates_evaluated: int = Field(default=0, exclude=True)
+    search_depth_used: str = Field(default="standard", exclude=True)
+    pipeline_latency_ms: int = Field(default=0, exclude=True)
+    sources_used: list[str] = Field(default_factory=list, exclude=True)
+
+    def model_dump(self, **kwargs) -> dict:
+        """Always exclude unset and none values from response."""
+        kwargs.setdefault("exclude_none", True)
+        kwargs.setdefault("exclude_unset", True)
+        kwargs.setdefault("exclude_defaults", False)
+        # Drop empty arrays for clean payload
+        dumped = super().model_dump(**kwargs)
+        for rec in dumped.get("recommendations", []):
+            if "accreditations" in rec and not rec["accreditations"]:
+                del rec["accreditations"]
+            if "pros" in rec and not rec["pros"]:
+                del rec["pros"]
+            if "cons" in rec and not rec["cons"]:
+                del rec["cons"]
+        return dumped

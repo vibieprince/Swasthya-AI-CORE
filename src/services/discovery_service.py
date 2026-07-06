@@ -2,7 +2,7 @@
 SWASTHYA AI CORE — Discovery Service.
 
 Application service layer for Hospital Discovery.
-Validates input, generates a task ID, publishes a RabbitMQ message,
+Validates input, generates a task ID, dispatches to the internal executor,
 and returns immediately.
 """
 
@@ -17,7 +17,7 @@ from src.domain.context.enums import MedicalSpecialty, UrgencyLevel
 from src.domain.context.models import PatientContext
 from src.domain.discovery.models import DiscoveryRequest, SearchLocation
 from src.dtos.discovery_dtos import DiscoverySearchRequest, DiscoverySearchResponse
-from src.infrastructure.rabbitmq.publisher import publish_discovery_task
+from src.infrastructure.execution.executor import get_job_executor
 from src.infrastructure.redis.client import create_task_progress
 
 logger = get_logger(__name__)
@@ -34,7 +34,7 @@ class DiscoveryService:
         
         1. Validate PatientContext has minimum requirements (location, specialty)
         2. Create a Redis task tracking record
-        3. Publish a RabbitMQ message
+        3. Dispatch to the internal async JobExecutor
         4. Return the task_id
         """
         correlation_id = get_correlation_id()
@@ -76,10 +76,10 @@ class DiscoveryService:
             # 1. Create initial state in Redis (0% Queued)
             await create_task_progress(task_id, correlation_id)
             
-            # 2. Publish to RabbitMQ queue
-            # We serialize the Domain model to dict for RabbitMQ
+            # 2. Dispatch to internal async executor
+            # We serialize the Domain model to dict for consistency with the domain barrier
             msg_body = discovery_request.model_dump(mode="json")
-            await publish_discovery_task(msg_body)
+            get_job_executor().submit_discovery_task(msg_body)
             
         except Exception as exc:
             logger.error("Failed to start discovery task", extra={"task_id": task_id, "error": str(exc)})

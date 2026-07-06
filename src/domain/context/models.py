@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from src.domain.context.enums import (
     BudgetPreference,
     ClinicalIntent,
+    ConversationState,
     DetectedLanguage,
     HospitalTypePreference,
     InsuranceScheme,
@@ -113,8 +114,24 @@ class PatientContext(BaseModel):
     """
 
     context_id: str
+    session_version: int = 1
     language: LanguageIntelligence
     clinical: ClinicalData
     validation: ContextValidation
     raw_message: str
     processing_latency_ms: int = 0
+
+
+class ConversationSession(BaseModel):
+    """
+    The full state of a conversational session, persisted in Redis.
+    This wrapper provides explicit state machine transitions and versioning.
+    """
+
+    session_id: str
+    state: ConversationState = ConversationState.NEW_SESSION
+    version: int = 1
+    patient_context: PatientContext
+    last_question: Optional[str] = None
+    created_at_ms: int
+    updated_at_ms: int

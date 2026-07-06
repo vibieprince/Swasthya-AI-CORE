@@ -297,3 +297,13 @@ async def cache_get(key: str) -> Optional[str]:
     except Exception as exc:
         logger.warning("Cache read failed", extra={"key": key, "error": str(exc)})
         return None
+
+
+async def cache_del(key: str) -> None:
+    """Delete a key from Redis. Used to immediately free conversation session memory."""
+    client = _get_client()
+    try:
+        await asyncio.wait_for(client.delete(key), timeout=_REDIS_OP_TIMEOUT)
+    except Exception as exc:
+        # Non-fatal: log and continue. The TTL will eventually clean up.
+        logger.warning("Cache delete failed", extra={"key": key, "error": str(exc)})

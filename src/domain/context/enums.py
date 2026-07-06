@@ -114,3 +114,15 @@ class MedicalSpecialty(str, Enum):
     FERTILITY = "Fertility"
     TRANSPLANT = "Transplant"
     UNKNOWN = "Unknown"
+
+
+class ConversationState(str, Enum):
+    """Explicit state machine for the context conversation lifecycle."""
+
+    NEW_SESSION = "NEW_SESSION"
+    WAITING_FOR_HEALTH_QUERY = "WAITING_FOR_HEALTH_QUERY"
+    GATHERING_CLINICAL_INFO = "GATHERING_CLINICAL_INFO"
+    WAITING_FOR_LOCATION = "WAITING_FOR_LOCATION"
+    CONTEXT_READY = "CONTEXT_READY"
+    POST_DISCOVERY_QA = "POST_DISCOVERY_QA"
+    SESSION_EXPIRED = "SESSION_EXPIRED"

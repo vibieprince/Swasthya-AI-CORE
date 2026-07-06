@@ -1,43 +1,23 @@
 """
-SWASTHYA AI CORE — Discovery Worker Entry Point.
+SWASTHYA AI CORE — Async Job Executor.
 
-Production-grade worker that:
-- Initialises infrastructure (HTTP, Redis)
-- Registers SIGTERM/SIGINT for graceful shutdown (POSIX) or Ctrl+C (Windows)
-- Consumes RabbitMQ messages indefinitely
-- Never returns until shutdown is requested
-
-Progress milestones written to Redis:
-  0%  → Queued          (written by API at dispatch time)
-  10% → Planning Search
-  25% → Google Places complete
-  40% → Tavily complete
-  50% → Deduplication complete
-  65% → Research started
-  80% → Research completed
-  90% → Ranking hospitals
-  100% → Completed
-
-Error contract:
-  Business failure → FAILED in Redis, message acked (no requeue)
-  CancelledError   → FAILED in Redis via asyncio.shield(), message nacked+requeued
+Provides an internal async scheduler to execute the discovery pipeline
+in the background without relying on an external queue like RabbitMQ.
 """
 
 from __future__ import annotations
 
 import asyncio
-import signal
-import sys
 import time
+from abc import ABC, abstractmethod
 from typing import Any
 
 from src.common.correlation import set_correlation_id
-from src.common.logging import configure_logging, get_logger
+from src.common.logging import get_logger
 from src.domain.discovery.models import DiscoveryRequest
 from src.domain.ranking.models import RecommendationBundle
 from src.domain.tasks.models import TaskStatus
 from src.infrastructure.llm.gateway import LLMGateway
-from src.infrastructure.rabbitmq.consumer import request_shutdown, start_consumer
 from src.infrastructure.redis.client import update_task_progress
 from src.pipelines.discovery.orchestrator import DiscoveryOrchestrator
 from src.ranking.explainer import RecommendationExplainer
@@ -46,29 +26,51 @@ from src.ranking.ranker import HospitalRanker
 logger = get_logger(__name__)
 
 
-class DiscoveryWorker:
-    """
-    Processes a single discovery task message end-to-end.
+class BaseJobExecutor(ABC):
+    """Abstract interface for background job execution."""
 
-    One instance is shared across all messages processed by this worker
-    process.  All state is local to each process_message() call — the
-    worker itself is stateless.
+    @abstractmethod
+    def submit_discovery_task(self, request_data: dict[str, Any]) -> None:
+        """Submit a discovery task for background execution."""
+        pass
+
+
+class AsyncIOJobExecutor(BaseJobExecutor):
+    """
+    In-memory async job executor using asyncio.create_task().
+    Ideal for single-container deployment on Render Free.
     """
 
     def __init__(self, gateway: LLMGateway) -> None:
+        self._gateway = gateway
         self._orchestrator = DiscoveryOrchestrator(gateway)
         self._ranker = HospitalRanker()
         self._explainer = RecommendationExplainer(gateway)
+        self._background_tasks: set[asyncio.Task[Any]] = set()
 
-    async def process_message(self, message_body: dict[str, Any]) -> None:
+    def submit_discovery_task(self, request_data: dict[str, Any]) -> None:
         """
-        Handle one RabbitMQ discovery task message.
+        Spawns a background coroutine to run the discovery pipeline.
+        Maintains a strong reference in self._background_tasks to prevent
+        the task from being garbage collected mid-execution.
+        """
+        task = asyncio.create_task(self._process_message(request_data))
+        
+        # Add to set for strong reference
+        self._background_tasks.add(task)
+        
+        # Remove from set when done
+        task.add_done_callback(self._background_tasks.discard)
 
-        Called by the consumer for every inbound message.
-        Must NOT raise for business logic errors.
-        MAY raise for CancelledError (propagated for clean shutdown).
+        logger.info(
+            "Background discovery task submitted internally", 
+            extra={"active_tasks": len(self._background_tasks)}
+        )
+
+    async def _process_message(self, message_body: dict[str, Any]) -> None:
         """
-        # Validate the incoming payload against our domain model
+        Handle one discovery task end-to-end.
+        """
         try:
             request = DiscoveryRequest.model_validate(message_body)
         except Exception as exc:
@@ -76,8 +78,6 @@ class DiscoveryWorker:
                 "Invalid message payload — cannot process",
                 extra={"error": str(exc), "keys": list(message_body.keys())},
             )
-            # Cannot update Redis without a valid task_id — just return
-            # Consumer will ack this message to prevent requeue loop
             return
 
         task_id = request.task_id
@@ -88,12 +88,10 @@ class DiscoveryWorker:
         logger.info("Processing task", extra={"task_id": task_id})
         t_start = time.monotonic()
 
-        # Progress callback injected into orchestrator (Issue 7)
         async def _progress(percent: int, stage: str) -> None:
             try:
                 await update_task_progress(task_id, TaskStatus.RUNNING, percent, stage)
             except Exception as exc:
-                # Never let a Redis update failure abort the pipeline
                 logger.warning(
                     "Progress update failed — continuing",
                     extra={"task_id": task_id, "stage": stage, "error": str(exc)},
@@ -151,19 +149,16 @@ class DiscoveryWorker:
             )
 
         except asyncio.CancelledError:
-            # Shutdown in progress — mark task FAILED so client is not stuck
             logger.warning("Task cancelled by shutdown", extra={"task_id": task_id})
-            # asyncio.shield() keeps this Redis write from being cancelled
             await asyncio.shield(
                 update_task_progress(
                     task_id,
                     TaskStatus.FAILED,
                     0,
                     "Cancelled",
-                    error_message="Worker shut down during processing — please retry.",
+                    error_message="Server shut down during processing — please retry.",
                 )
             )
-            raise  # Re-raise so consumer nacks the message with requeue=True
 
         except Exception as exc:
             logger.error(
@@ -171,7 +166,6 @@ class DiscoveryWorker:
                 extra={"task_id": task_id, "error": str(exc)},
                 exc_info=True,
             )
-            # Best-effort: write FAILED to Redis so the polling client gets feedback
             try:
                 await update_task_progress(
                     task_id,
@@ -182,75 +176,39 @@ class DiscoveryWorker:
                 )
             except Exception as redis_exc:
                 logger.error(
-                    "Could not write FAILED status to Redis — raising to requeue",
+                    "Could not write FAILED status to Redis",
                     extra={"task_id": task_id, "error": str(redis_exc)},
                 )
-                # Redis is dead. We must raise so the consumer nacks and requeues.
-                raise redis_exc
 
-
-async def run_worker() -> None:
-    """
-    Worker process entry point.
-
-    Starts all infrastructure and blocks until SIGTERM/SIGINT.
-
-    Start with:
-        python -m src.workers.discovery_worker
-    Or:
-        python -c "import asyncio; from src.workers.discovery_worker import run_worker; asyncio.run(run_worker())"
-    """
-    configure_logging()
-    logger.info("Discovery Worker starting")
-
-    from src.infrastructure.http.client import close_http_client, initialize_http_client
-    from src.infrastructure.redis.client import close_redis, initialize_redis
-    from src.infrastructure.browser.pool import initialize_browser, close_browser
-
-    await initialize_http_client()
-    await initialize_redis()
-    await initialize_browser()
-
-    gateway = LLMGateway()
-    worker = DiscoveryWorker(gateway)
-
-    # ── Signal handling for graceful shutdown ─────────────────────────────────
-    loop = asyncio.get_running_loop()
-
-    def _handle_shutdown_signal(signame: str) -> None:
-        logger.info(f"Received {signame} — initiating graceful shutdown")
-        request_shutdown()
-
-    # POSIX systems (Linux, macOS): use loop.add_signal_handler
-    # Windows: falls back to signal.signal (handled via KeyboardInterrupt)
-    if sys.platform != "win32":
-        for sig in (signal.SIGTERM, signal.SIGINT):
-            loop.add_signal_handler(sig, _handle_shutdown_signal, sig.name)
-    else:
-        # On Windows, asyncio.run() converts Ctrl+C to CancelledError —
-        # request_shutdown() will be called when the consumer receives it.
-        pass
-
-    # ── Run forever ───────────────────────────────────────────────────────────
-    try:
-        logger.info("Discovery Worker ready — consuming messages")
-        await start_consumer(worker.process_message)
-    finally:
-        logger.info("Discovery Worker shutting down")
+    async def shutdown(self) -> None:
+        """Wait for all pending tasks to finish gracefully during app shutdown."""
+        if not self._background_tasks:
+            return
+            
+        logger.info(f"Waiting for {len(self._background_tasks)} background tasks to finish...")
+        # Give background tasks 30 seconds to finish before forcing shutdown
         try:
-            await close_http_client()
-        except Exception as exc:
-            logger.warning("Error closing HTTP client", extra={"error": str(exc)})
-        try:
-            await close_browser()
-        except Exception as exc:
-            logger.warning("Error closing browser", extra={"error": str(exc)})
-        try:
-            await close_redis()
-        except Exception as exc:
-            logger.warning("Error closing Redis", extra={"error": str(exc)})
-        logger.info("Discovery Worker stopped")
+            await asyncio.wait_for(
+                asyncio.gather(*self._background_tasks, return_exceptions=True),
+                timeout=30.0
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Some background tasks did not finish in time during shutdown.")
+        logger.info("Background tasks shutdown complete.")
 
 
-if __name__ == "__main__":
-    asyncio.run(run_worker())
+# Global singleton management
+_executor: AsyncIOJobExecutor | None = None
+
+def initialize_job_executor(gateway: LLMGateway) -> None:
+    """Initialize the global job executor."""
+    global _executor
+    if _executor is None:
+        _executor = AsyncIOJobExecutor(gateway)
+
+def get_job_executor() -> AsyncIOJobExecutor:
+    """Returns the singleton JobExecutor."""
+    global _executor
+    if _executor is None:
+        raise RuntimeError("JobExecutor is not initialized. Call initialize_job_executor first.")
+    return _executor

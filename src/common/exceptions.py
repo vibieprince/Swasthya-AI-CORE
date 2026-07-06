@@ -61,6 +61,17 @@ class InsufficientContextError(SwasthyaBaseError):
         super().__init__(message, code="INSUFFICIENT_CONTEXT")
 
 
+class ContextExpiredError(SwasthyaBaseError):
+    """A context_id was provided but the session has expired from Redis."""
+
+    def __init__(self, context_id: str) -> None:
+        super().__init__(
+            f"Conversation session '{context_id}' has expired. Please start a new conversation.",
+            code="CONTEXT_EXPIRED",
+        )
+        self.context_id = context_id
+
+
 # ── Discovery Errors ────────────────────────────────────────────────────────────
 
 class DiscoveryPipelineError(SwasthyaBaseError):
@@ -102,14 +113,6 @@ class RedisError(SwasthyaBaseError):
 
     def __init__(self, operation: str, message: str) -> None:
         super().__init__(message, code="REDIS_ERROR")
-        self.operation = operation
-
-
-class RabbitMQError(SwasthyaBaseError):
-    """RabbitMQ operation failed."""
-
-    def __init__(self, operation: str, message: str) -> None:
-        super().__init__(message, code="RABBITMQ_ERROR")
         self.operation = operation
 
 

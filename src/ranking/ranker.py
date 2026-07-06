@@ -81,6 +81,13 @@ class HospitalRanker:
                 # Rough heuristic: 25 km/h avg city speed -> ~2.4 mins per km
                 travel_mins = int(dist_km * 2.4)
                 
+            cost_range = CostRange(
+                min_inr=candidate.estimated_cost_min_inr,
+                max_inr=candidate.estimated_cost_max_inr,
+            )
+            if cost_range.min_inr is None and cost_range.max_inr is None:
+                cost_range = None
+
             ranked = RankedHospital(
                 rank=rank_idx + 1,
                 hospital_name=candidate.hospital_name,
@@ -92,9 +99,6 @@ class HospitalRanker:
                 estimated_travel_time_minutes=travel_mins,
                 google_maps_place_id=candidate.coordinates.google_maps_place_id if candidate.coordinates else None,
                 google_maps_url=candidate.coordinates.google_maps_url if candidate.coordinates else None,
-                city=candidate.coordinates.city if candidate.coordinates else None,
-                state=candidate.coordinates.state if candidate.coordinates else None,
-                pincode=candidate.coordinates.pincode if candidate.coordinates else None,
                 contact_number=candidate.contact_number,
                 website=candidate.website,
                 accreditations=candidate.accreditations,
@@ -102,18 +106,12 @@ class HospitalRanker:
                 review_count=candidate.review_count,
                 has_emergency=bool(candidate.has_emergency),
                 has_icu=bool(candidate.has_icu),
-                estimated_cost_range=CostRange(
-                    min_inr=candidate.estimated_cost_min_inr,
-                    max_inr=candidate.estimated_cost_max_inr,
-                ),
+                estimated_cost_range=cost_range,
+                overall_score=overall_score,
                 scores=scores,
-                # Explainability fields will be populated by the Explainer step
-                recommendation_summary="",
-                recommendation_summary_english="",
-                why_this_rank="",
-                top_reasons=candidate.key_strengths[:3],
-                cautions=candidate.known_limitations[:1],
-                confidence_explanation="",
+                summary="",
+                pros=candidate.key_strengths[:3],
+                cons=candidate.known_limitations[:1],
             )
             ranked_hospitals.append(ranked)
 

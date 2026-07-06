@@ -59,12 +59,6 @@ class Settings(BaseSettings):
     redis_url: str = Field(..., min_length=10)
     redis_ttl_seconds: int = Field(default=21600, ge=3600)
 
-    # ── RabbitMQ — REQUIRED ────────────────────────────────────────────────────
-    rabbitmq_url: str = Field(..., min_length=10)
-    rabbitmq_discovery_queue: str = "swasthya.discovery"
-    rabbitmq_exchange: str = "swasthya.exchange"
-    rabbitmq_prefetch_count: int = Field(default=4, ge=1, le=32)
-
     # ── LLM Timeouts ───────────────────────────────────────────────────────────
     gemini_timeout_seconds: int = Field(default=30, ge=10, le=120)   # Issue 9
     mistral_timeout_seconds: int = Field(default=30, ge=10, le=120)  # Issue 9

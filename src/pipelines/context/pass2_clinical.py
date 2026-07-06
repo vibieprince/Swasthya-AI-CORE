@@ -13,6 +13,8 @@ from typing import Any
 from src.common.exceptions import ContextPipelineError
 from src.common.logging import get_logger
 from src.common.prompts.context_prompts import (
+    PASS2_MERGE_SYSTEM,
+    PASS2_MERGE_USER_TEMPLATE,
     PASS2_SYSTEM,
     PASS2_USER_TEMPLATE,
     PROMPT_VERSION,
@@ -216,3 +218,150 @@ class Pass2ClinicalExtractor:
             },
         )
         return clinical
+
+    async def run_merge(
+        self,
+        message: str,
+        language_code: str,
+        intent: ClinicalIntent,
+        existing_clinical: ClinicalData,
+    ) -> ClinicalData:
+        """
+        Execute Pass 2 in MERGE mode for multi-turn conversations.
+
+        Sends the existing ClinicalData snapshot alongside the new message.
+        The LLM is instructed to only fill in null/empty fields, preserving
+        all confirmed values from previous turns.
+
+        Args:
+            message: Latest raw patient message.
+            language_code: Detected language from Pass 1.
+            intent: Detected clinical intent from Pass 1.
+            existing_clinical: ClinicalData stored from a previous turn.
+
+        Returns:
+            Updated ClinicalData with previously missing fields filled in.
+        """
+        t_start = time.monotonic()
+
+        valid_specialties = [e.value for e in MedicalSpecialty]
+        valid_urgencies = [e.value for e in UrgencyLevel]
+
+        request = LLMRequest(
+            system_prompt=PASS2_MERGE_SYSTEM,
+            user_prompt=PASS2_MERGE_USER_TEMPLATE.format(
+                language_code=language_code,
+                message=message,
+                intent=intent.value,
+                valid_specialties=", ".join(valid_specialties),
+                valid_urgencies=", ".join(valid_urgencies),
+            ),
+            temperature=0.05,
+            prompt_version=PROMPT_VERSION,
+        )
+
+        try:
+            response = await self._gateway.complete(request, pipeline_stage="context_pass2_merge")
+        except Exception as exc:
+            raise ContextPipelineError(
+                stage="pass2_clinical_merge",
+                message=f"LLM gateway failed in Pass 2 merge: {exc}",
+            ) from exc
+
+        p = response.parsed
+        latency_ms = int((time.monotonic() - t_start) * 1000)
+
+        try:
+            loc_raw = p.get("patient_location", {}) or {}
+            budget_raw = p.get("budget_inr", {}) or {}
+            insurance_raw = p.get("insurance", {}) or {}
+            ex = existing_clinical  # shorthand
+
+            raw_specialty = p.get("preferred_specialty")
+            specialty: MedicalSpecialty | None = None
+            if raw_specialty:
+                specialty = _safe_enum(MedicalSpecialty, raw_specialty, None)
+            # Fall back to existing if LLM returned nothing new
+            if specialty is None:
+                specialty = ex.preferred_specialty
+
+            raw_scheme = insurance_raw.get("scheme")
+            scheme = _safe_enum(InsuranceScheme, raw_scheme, None) if raw_scheme else None
+            if scheme is None:
+                scheme = ex.insurance.scheme
+
+            # ── Python-level non-destructive merge ──────────────────────────────
+            # Rule: for each field, prefer the LLM's new value only when it is
+            # non-null/non-empty.  If the LLM returned null/empty, keep the value
+            # that was already confirmed in a previous turn.
+            def _pick_list(new: list, old: list) -> list:
+                return new if new else old
+
+            def _pick_val(new, old):
+                return new if new is not None else old
+
+            # Location: build from LLM output, fall back field-by-field
+            new_loc = PatientLocation(
+                city=_pick_val(loc_raw.get("city"), ex.patient_location.city),
+                state=_pick_val(loc_raw.get("state"), ex.patient_location.state),
+                pincode=_pick_val(loc_raw.get("pincode"), ex.patient_location.pincode),
+                raw_location=_pick_val(loc_raw.get("raw_location"), ex.patient_location.raw_location),
+            )
+
+            # Budget: prefer new only when non-default
+            new_budget_pref = _safe_enum(BudgetPreference, budget_raw.get("preference"), None)
+            merged = ClinicalData(
+                symptoms=_pick_list(p.get("symptoms", []) or [], ex.symptoms),
+                symptom_duration_days=_pick_val(p.get("symptom_duration_days"), ex.symptom_duration_days),
+                pain_level=_pick_val(p.get("pain_level"), ex.pain_level),
+                # is_emergency: once True, always True; otherwise trust new value
+                is_emergency=ex.is_emergency or bool(p.get("is_emergency", False)),
+                pregnancy_status=_safe_enum(
+                    PregnancyStatus,
+                    p.get("pregnancy_status"),
+                    ex.pregnancy_status,
+                ),
+                medical_history=_pick_list(p.get("medical_history", []) or [], ex.medical_history),
+                current_medications=_pick_list(p.get("current_medications", []) or [], ex.current_medications),
+                allergies=_pick_list(p.get("allergies", []) or [], ex.allergies),
+                age_years=_pick_val(p.get("age_years"), ex.age_years),
+                gender=_pick_val(p.get("gender"), ex.gender),
+                patient_location=new_loc,
+                budget=BudgetContext(
+                    min_inr=_pick_val(budget_raw.get("min"), ex.budget.min_inr),
+                    max_inr=_pick_val(budget_raw.get("max"), ex.budget.max_inr),
+                    preference=new_budget_pref if new_budget_pref else ex.budget.preference,
+                ),
+                insurance=InsuranceContext(
+                    has_insurance=_pick_val(insurance_raw.get("has_insurance"), ex.insurance.has_insurance),
+                    provider=_pick_val(insurance_raw.get("provider"), ex.insurance.provider),
+                    scheme=scheme,
+                ),
+                preferred_specialty=specialty,
+                urgency_level=_safe_enum(
+                    UrgencyLevel, p.get("urgency_level"), ex.urgency_level
+                ),
+                preferred_hospital_type=_safe_enum(
+                    HospitalTypePreference,
+                    p.get("preferred_hospital_type"),
+                    ex.preferred_hospital_type,
+                ),
+                preferred_gender_doctor=_pick_val(p.get("preferred_gender_doctor"), ex.preferred_gender_doctor),
+            )
+        except Exception as exc:
+            raise ContextPipelineError(
+                stage="pass2_clinical_merge",
+                message=f"Failed to build merged ClinicalData: {exc}",
+            ) from exc
+
+        logger.info(
+            "Pass 2 merge completed",
+            extra={
+                "symptom_count": len(merged.symptoms),
+                "has_location": merged.patient_location.city is not None or merged.patient_location.raw_location is not None,
+                "urgency": merged.urgency_level.value,
+                "latency_ms": latency_ms,
+            },
+        )
+        return merged
+

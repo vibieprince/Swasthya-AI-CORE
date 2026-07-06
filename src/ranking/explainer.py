@@ -48,13 +48,10 @@ class RecommendationExplainer:
         for h in ranked_hospitals:
             batch_ranking_data += (
                 f"HOSPITAL NAME: {h.hospital_name}\n"
-                f"Name: {h.hospital_name}\n"
                 f"Rank: {h.rank} of {total_ranked}\n"
-                f"Trust Score: {round(h.scores.trust_score, 2)}\n"
-                f"Clinical Suitability: {round(h.scores.clinical_suitability_score, 2)}\n"
-                f"Affordability Score: {round(h.scores.affordability_score, 2)}\n"
-                f"Key Strengths: {', '.join(h.top_reasons)}\n"
-                f"Known Limitations: {', '.join(h.cautions)}\n"
+                f"Overall Score: {round(h.overall_score, 2)}\n"
+                f"Key Strengths: {', '.join(h.pros)}\n"
+                f"Known Limitations: {', '.join(h.cons)}\n"
                 f"---------------------------------------------------\n"
             )
 
@@ -77,23 +74,16 @@ class RecommendationExplainer:
                 p = batch_parsed.get(h.hospital_name, {})
                 if not p:
                     # Fallback if omitted by LLM
-                    h.recommendation_summary = f"Recommended based on clinical suitability for {request.specialty.value}."
-                    h.recommendation_summary_english = h.recommendation_summary
-                    h.why_this_rank = f"Ranked #{h.rank} based on overall match."
-                    h.confidence_explanation = "Based on available data."
+                    h.summary = f"Recommended based on clinical suitability for {request.specialty.value}."
                     continue
                     
-                h.recommendation_summary = p.get("recommendation_summary", "")
-                h.recommendation_summary_english = p.get("recommendation_summary_english", "")
-                h.why_this_rank = p.get("why_this_rank", "")
+                h.summary = p.get("summary", "")
                 
-                if p.get("top_reasons"):
-                    h.top_reasons = p.get("top_reasons")
+                if p.get("pros"):
+                    h.pros = p.get("pros")
                     
-                if p.get("cautions"):
-                    h.cautions = p.get("cautions")
-                    
-                h.confidence_explanation = p.get("confidence_explanation", "")
+                if p.get("cons"):
+                    h.cons = p.get("cons")
 
         except Exception as exc:
             logger.warning(
@@ -102,9 +92,6 @@ class RecommendationExplainer:
             )
             # Fallback text if explanation fails entirely
             for h in ranked_hospitals:
-                h.recommendation_summary = f"Recommended based on clinical suitability for {request.specialty.value}."
-                h.recommendation_summary_english = h.recommendation_summary
-                h.why_this_rank = f"Ranked #{h.rank} based on overall match."
-                h.confidence_explanation = "Based on available data."
+                h.summary = f"Recommended based on clinical suitability for {request.specialty.value}."
 
         return ranked_hospitals

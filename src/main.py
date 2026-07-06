@@ -18,8 +18,9 @@ from src.api.middleware import RequestCorrelationMiddleware
 from src.api.routers import context, discovery, tasks
 from src.common.logging import configure_logging, get_logger
 from src.config.settings import get_settings
+from src.infrastructure.execution.executor import get_job_executor, initialize_job_executor
 from src.infrastructure.http.client import close_http_client, initialize_http_client
-from src.infrastructure.rabbitmq.publisher import close_publisher, initialize_publisher
+from src.infrastructure.llm.gateway import LLMGateway
 from src.infrastructure.redis.client import close_redis, initialize_redis
 
 logger = get_logger(__name__)
@@ -40,7 +41,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # ── Initialize Infrastructure ──────────────────────────────────────────
         await initialize_http_client()
         await initialize_redis()
-        await initialize_publisher()
+        
+        # Initialize internal job executor
+        gateway = LLMGateway()
+        initialize_job_executor(gateway)
         
         logger.info("Application startup complete.")
         yield
@@ -51,7 +55,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     finally:
         # ── Teardown Infrastructure ────────────────────────────────────────────
         logger.info("Application shutdown initiated.")
-        await asyncio.shield(close_publisher())
+        
+        # Wait for background jobs to complete
+        try:
+            await get_job_executor().shutdown()
+        except Exception as exc:
+            logger.warning("Error shutting down JobExecutor", extra={"error": str(exc)})
+            
         await asyncio.shield(close_redis())
         await asyncio.shield(close_http_client())
         logger.info("Application shutdown complete.")
@@ -66,7 +76,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="SWASTHYA AI CORE",
         description="Stateless Healthcare Intelligence Engine",
-        version="1.0.0",
+        version="1.0.2",
         lifespan=lifespan,
         docs_url="/docs" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,
@@ -94,7 +104,7 @@ def create_app() -> FastAPI:
     @app.get("/health", tags=["System"])
     async def health_check() -> dict[str, str]:
         """Liveness probe."""
-        return {"status": "ok", "service": "swasthya-ai-core"}
+        return {"status": "healthy"}
 
     return app
 

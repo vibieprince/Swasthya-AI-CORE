@@ -10,107 +10,70 @@ PROMPT_VERSION = "1.0.0"
 
 # ── Search Strategy Generation ─────────────────────────────────────────────────
 
-STRATEGY_SYSTEM = """You are a medical search strategy architect for the Indian healthcare market.
-Given a patient's clinical context, generate a comprehensive multi-source search strategy
-to discover the best hospitals for their needs.
-You MUST respond with ONLY valid JSON. No markdown. No prose.
-"""
+STRATEGY_SYSTEM = """You are a medical search strategy architect.
+Return ONLY valid JSON matching this exact schema:
+{
+  "primary_search_queries": ["query1"],
+  "nabh_search_terms": ["term1"],
+  "specialty_keywords": ["kw1"],
+  "location_variants": ["loc1"],
+  "search_radius_km": 10,
+  "priority_filters": {"require_nabh": true, "require_emergency": false, "require_icu": false, "prefer_government": false},
+  "search_depth": "basic|standard|deep"
+}
+No markdown. No prose."""
 
-STRATEGY_USER_TEMPLATE = """Generate a hospital search strategy for this patient context.
-
-SPECIALTY: {specialty}
-LOCATION: {location}
-URGENCY: {urgency}
-BUDGET_PREFERENCE: {budget_preference}
-HOSPITAL_TYPE_PREFERENCE: {hospital_type}
-IS_EMERGENCY: {is_emergency}
-
-Respond with this exact JSON structure:
-{{
-  "primary_search_queries": [
-    "<query 1 — specific, location-aware>",
-    "<query 2>",
-    "<query 3>"
-  ],
-  "nabh_search_terms": ["<term1>", "<term2>"],
-  "specialty_keywords": ["<kw1>", "<kw2>", "<kw3>"],
-  "location_variants": ["<city>", "<city + state>", "<nearby area if applicable>"],
-  "search_radius_km": <integer>,
-  "priority_filters": {{
-    "require_nabh": <true|false>,
-    "require_emergency": <true|false>,
-    "require_icu": <true|false>,
-    "prefer_government": <true|false>
-  }},
-  "search_depth": "<basic|standard|deep>"
-}}"""
+STRATEGY_USER_TEMPLATE = """Context:
+Specialty: {specialty}
+Location: {location}
+Urgency: {urgency}
+Budget: {budget_preference}
+Type: {hospital_type}
+Emergency: {is_emergency}"""
 
 # ── Hospital Gemini Summarization ──────────────────────────────────────────────
 
-SUMMARIZE_SYSTEM = """You are a senior medical intelligence analyst for the Indian healthcare system.
-Analyse the provided hospital research data and produce a structured clinical assessment.
-Be factual. Do not hallucinate accreditations or facilities not mentioned in the data.
-You MUST respond with ONLY valid JSON containing a dictionary mapping each hospital's Candidate ID to its summary. No markdown. No prose.
-"""
+SUMMARIZE_SYSTEM = """You are a medical intelligence analyst.
+Summarize hospital data into a JSON dictionary mapping Candidate ID to this schema:
+{
+  "hospital_type": "government|private|trust|charitable",
+  "accreditations": ["NABH"],
+  "specialties_available": ["spec1"],
+  "has_emergency": true,
+  "has_icu": true,
+  "bed_count": 100,
+  "overall_rating": 4.5,
+  "review_count": 150,
+  "estimated_cost_range": {"min_inr": 1000, "max_inr": 5000, "currency": "INR"},
+  "contact_number": "phone",
+  "website": "url",
+  "key_strengths": ["str1"],
+  "known_limitations": ["str1"],
+  "clinical_notes": "factual paragraph",
+  "data_quality_score": 0.8
+}
+Return ONLY JSON. No markdown."""
 
-SUMMARIZE_USER_TEMPLATE = """Analyse and summarise this hospital data for patient recommendations.
+SUMMARIZE_USER_TEMPLATE = """Specialty: {specialty}
+Budget: {budget_preference}
+Urgency: {urgency}
 
-HOSPITALS DATA:
-{batch_raw_data}
-
-PATIENT SPECIALTY NEED: {specialty}
-PATIENT BUDGET: {budget_preference}
-PATIENT URGENCY: {urgency}
-
-Respond with this exact JSON structure:
-{{
-  "<candidate_id>": {{
-    "hospital_type": "<government|private|trust|charitable>",
-    "accreditations": ["<NABH>", "<JCI>", etc. — only if mentioned in data],
-    "specialties_available": ["<spec1>", "<spec2>"],
-    "has_emergency": <true|false>,
-    "has_icu": <true|false>,
-    "bed_count": <integer or null>,
-    "overall_rating": <1.0–5.0 or null>,
-    "review_count": <integer or null>,
-    "estimated_cost_range": {{
-      "min_inr": <integer or null>,
-      "max_inr": <integer or null>,
-      "currency": "INR"
-    }},
-    "contact_number": "<phone or null>",
-    "website": "<url or null>",
-    "key_strengths": ["<strength1>", "<strength2>"],
-    "known_limitations": ["<limitation1>"],
-    "clinical_notes": "<one paragraph, factual, no PHI>",
-    "data_quality_score": <0.0–1.0>
-  }}
-}}"""
+Data:
+{batch_raw_data}"""
 
 # ── Hospital Ranking Explainer ─────────────────────────────────────────────────
 
 EXPLAIN_SYSTEM = """You are a transparent medical recommendation engine.
-Generate a clear, patient-friendly explanation of why a hospital was recommended
-and why it was ranked at its specific position.
-Write in simple language, no medical jargon.
-You MUST respond with ONLY valid JSON containing a dictionary mapping each hospital's Name to its explanation. No markdown. No prose.
-"""
+Generate a JSON dictionary mapping Hospital Name to this schema:
+{
+  "summary": "2-3 sentence patient-friendly explanation in patient's language",
+  "pros": ["reason1", "reason2"],
+  "cons": ["caution1"]
+}
+Return ONLY JSON. No markdown."""
 
-EXPLAIN_USER_TEMPLATE = """Generate recommendation explanation for these ranked hospitals.
+EXPLAIN_USER_TEMPLATE = """Language: {language_code}
+Specialty: {specialty}
 
-HOSPITALS RANKING DATA:
-{batch_ranking_data}
-SPECIALTY: {specialty}
-PATIENT_LANGUAGE: {language_code}
-
-Respond with this exact JSON structure:
-{{
-  "<hospital_name>": {{
-    "recommendation_summary": "<2-3 sentence patient-friendly explanation in {language_code}>",
-    "recommendation_summary_english": "<English version>",
-    "why_this_rank": "<one sentence explaining rank position>",
-    "top_reasons": ["<reason1>", "<reason2>", "<reason3>"],
-    "cautions": ["<caution1 if any>"],
-    "confidence_explanation": "<one sentence on confidence level>"
-  }}
-}}"""
+Data:
+{batch_ranking_data}"""

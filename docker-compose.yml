@@ -3,7 +3,9 @@ version: "3.8"
 services:
   # ── API Server ───────────────────────────────────────────────────────────────
   api:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: swasthya-api
     ports:
       - "8000:8000"
@@ -12,28 +14,9 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    command: python -m uvicorn src.main:app --host 0.0.0.0 --port 8000
     volumes:
       - ./src:/app/src
-
-  # ── Worker Process ───────────────────────────────────────────────────────────
-  worker:
-    build: .
-    container_name: swasthya-worker
-    env_file:
-      - .env
-    depends_on:
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    command: python -c "import asyncio; from src.workers.discovery_worker import run_worker; asyncio.run(run_worker())"
-    volumes:
-      - ./src:/app/src
-    deploy:
-      replicas: 2 # Scale workers for parallel discovery tasks
 
   # ── Redis (Task State) ───────────────────────────────────────────────────────
   redis:
@@ -48,18 +31,3 @@ services:
       timeout: 3s
       retries: 5
 
-  # ── RabbitMQ (Task Queue) ────────────────────────────────────────────────────
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: swasthya-rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
-      interval: 5s
-      timeout: 3s
-      retries: 5

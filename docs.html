@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWASTHYA AI CORE - Developer Documentation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#0969da',
+                        secondary: '#57606a',
+                        border: '#d0d7de',
+                        bglight: '#f6f8fa'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <script>
+        // Prevent Flash of Unstyled Content (FOUC)
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; color: #24292f; background-color: #ffffff; scroll-behavior: smooth; font-size: 15px; line-height: 1.6; }
+        .nav-link { color: #57606a; transition: all 0.2s; display: block; padding: 6px 12px; border-radius: 6px; font-size: 14px; }
+        .nav-link:hover, .nav-link.active { color: #0969da; background-color: #f3f4f6; font-weight: 500; }
+        .code-block { background-color: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 16px; font-size: 13px; overflow-x: auto; position: relative; margin-bottom: 24px; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
+        .copy-btn { position: absolute; top: 8px; right: 8px; background: #ffffff; border: 1px solid #d0d7de; border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; color: #24292f; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); z-index: 10; }
+        .copy-btn:hover { background: #f3f4f6; }
+        .section-header { border-bottom: 1px solid #eaecef; padding-bottom: 8px; margin-bottom: 16px; margin-top: 48px; font-size: 24px; font-weight: 600; color: #24292f; }
+        .sub-header { font-size: 18px; font-weight: 600; margin-top: 32px; margin-bottom: 12px; color: #24292f; }
+        .schema-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px; }
+        .schema-table th { background-color: #f6f8fa; border-top: 1px solid #d0d7de; border-bottom: 1px solid #d0d7de; padding: 10px 12px; text-align: left; font-weight: 600; color: #57606a; }
+        .schema-table td { border-bottom: 1px solid #eaecef; padding: 12px 12px; vertical-align: top; }
+        .schema-table code { background-color: rgba(175, 184, 193, 0.2); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; color: #24292f; }
+        .badge-post { background-color: #dafbe1; color: #1a7f37; border: 1px solid rgba(45, 164, 78, 0.2); padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge-get { background-color: #ddf4ff; color: #0969da; border: 1px solid rgba(9, 105, 218, 0.2); padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .required-badge { color: #cf222e; font-weight: 600; font-size: 12px; margin-left: 4px; }
+        .dev-note { background-color: #f6f8fa; border-left: 4px solid #0969da; padding: 16px; border-radius: 0 6px 6px 0; margin: 24px 0; }
+        .dev-note h4 { margin-top: 0; color: #0969da; font-weight: 600; font-size: 14px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .flowchart { background: #ffffff; border: 1px solid #d0d7de; border-radius: 8px; padding: 24px; margin: 24px 0; font-family: 'Inter', sans-serif; }
+        .svg-container { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 24px; margin: 24px 0; display: flex; justify-content: center; }
+
+        /* Sidebar responsive control */
+        @media (max-width: 768px) {
+            #sidebar { transform: translateX(-100%); transition: transform 0.3s ease-in-out; position: fixed; z-index: 40; background: white; height: 100vh; width: 280px; box-shadow: 2px 0 8px rgba(0,0,0,0.1); top: 0; left: 0; }
+            #sidebar.open { transform: translateX(0); }
+        }
+
+        /* Dark Mode Overrides (GitHub Dark Theme Layout) */
+        html.dark body { color: #c9d1d9; background-color: #0d1117; }
+        html.dark .nav-link { color: #8b949e; }
+        html.dark .nav-link:hover, html.dark .nav-link.active { color: #58a6ff; background-color: #21262d; }
+        html.dark .code-block { background-color: #161b22; border-color: #30363d; color: #c9d1d9; }
+        html.dark .copy-btn { background: #21262d; border-color: #30363d; color: #c9d1d9; }
+        html.dark .copy-btn:hover { background: #30363d; }
+        html.dark .section-header { border-color: #30363d; color: #c9d1d9; }
+        html.dark .sub-header { color: #c9d1d9; }
+        html.dark .schema-table th { background-color: #161b22; border-color: #30363d; color: #8b949e; }
+        html.dark .schema-table td { border-color: #30363d; }
+        html.dark .schema-table code { background-color: rgba(240, 246, 252, 0.1); color: #c9d1d9; }
+        html.dark .badge-post { background-color: rgba(46, 160, 67, 0.15); color: #3fb950; border-color: rgba(46, 160, 67, 0.4); }
+        html.dark .badge-get { background-color: rgba(56, 139, 253, 0.15); color: #58a6ff; border-color: rgba(56, 139, 253, 0.4); }
+        html.dark .required-badge { color: #ff7b72; }
+        html.dark .svg-container { background: #161b22; border-color: #30363d; }
+        html.dark .dev-note { background-color: #161b22; border-left-color: #1f6feb; }
+        html.dark .dev-note h4 { color: #58a6ff; }
+        
+        /* Inline component override helpers for true theme adherence */
+        html.dark .bg-white { background-color: #0d1117 !important; }
+        html.dark .bg-bglight { background-color: #161b22 !important; }
+        html.dark .border-border { border-color: #30363d !important; }
+        html.dark .border-b, html.dark .border-r, html.dark .border-t { border-color: #30363d !important; }
+        html.dark .text-gray-900 { color: #c9d1d9 !important; }
+        html.dark .text-gray-700 { color: #8b949e !important; }
+        html.dark .text-gray-600 { color: #8b949e !important; }
+        html.dark .text-gray-500 { color: #8b949e !important; }
+        html.dark .bg-gray-100 { background-color: rgba(240, 246, 252, 0.1) !important; }
+        html.dark .bg-gray-50 { background-color: #21262d !important; }
+        html.dark .hover\:bg-gray-50:hover { background-color: #30363d !important; }
+        html.dark .bg-gray-900 { background-color: #f0f6fc !important; color: #0d1117 !important; }
+        html.dark .hover\:bg-gray-800:hover { background-color: #c9d1d9 !important; }
+        
+        /* Status and alert box dark adaptations */
+        html.dark .bg-yellow-50 { background-color: rgba(210, 153, 34, 0.1) !important; border-color: rgba(210, 153, 34, 0.4) !important; color: #d29922 !important; }
+        html.dark .text-yellow-800 { color: #e3b341 !important; }
+        html.dark .bg-yellow-100 { background-color: rgba(210, 153, 34, 0.2) !important; color: #e3b341 !important; }
+        html.dark .bg-blue-100 { background-color: rgba(56, 139, 253, 0.15) !important; color: #58a6ff !important; }
+        html.dark .text-blue-700 { color: #58a6ff !important; }
+        html.dark .text-blue-800 { color: #58a6ff !important; }
+        html.dark .border-blue-200 { border-color: rgba(56, 139, 253, 0.4) !important; }
+        html.dark .bg-green-100 { background-color: rgba(46, 160, 67, 0.15) !important; color: #3fb950 !important; }
+        html.dark .text-green-800 { color: #3fb950 !important; }
+        html.dark .border-green-200 { border-color: rgba(46, 160, 67, 0.4) !important; }
+        html.dark .border-gray-300 { border-color: #30363d !important; }
+        
+        /* Architecture SVG Diagram Dark Adaptations */
+        html.dark .svg-container rect[fill="#ffffff"] { fill: #0d1117 !important; stroke: #30363d !important; }
+        html.dark .svg-container text[fill="#24292f"] { fill: #c9d1d9 !important; }
+        html.dark .svg-container rect[fill="#ddf4ff"] { fill: rgba(56, 139, 253, 0.15) !important; stroke: rgba(56, 139, 253, 0.4) !important; }
+        html.dark .svg-container text[fill="#0969da"] { fill: #58a6ff !important; }
+        html.dark .svg-container rect[fill="#fcf3cc"] { fill: rgba(210, 153, 34, 0.15) !important; stroke: rgba(210, 153, 34, 0.4) !important; }
+        html.dark .svg-container text[fill="#9e6a03"] { fill: #e3b341 !important; }
+        html.dark .svg-container rect[fill="#dafbe1"] { fill: rgba(46, 160, 67, 0.15) !important; stroke: rgba(46, 160, 67, 0.4) !important; }
+        html.dark .svg-container text[fill="#1a7f37"] { fill: #3fb950 !important; }
+        html.dark .svg-container rect[fill="#ffebe9"] { fill: rgba(248, 81, 73, 0.15) !important; stroke: rgba(248, 81, 73, 0.4) !important; }
+        html.dark .svg-container text[fill="#cf222e"] { fill: #ff7b72 !important; }
+        html.dark .svg-container line, html.dark .svg-container path { stroke: #8b949e !important; }
+        html.dark .svg-container polygon { fill: #8b949e !important; }
+    </style>
+</head>
+<body class="antialiased flex flex-col min-h-screen">
+
+    <nav class="sticky top-0 z-50 bg-white border-b border-border shadow-sm flex items-center justify-between px-6 py-4">
+        <div class="flex items-center gap-4">
+            <button id="mobile-menu-btn" class="md:hidden text-secondary hover:text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            <div class="font-bold text-xl tracking-tight text-gray-900">SWASTHYA AI CORE</div>
+            <span class="bg-bglight text-secondary text-xs px-2 py-1 rounded-full border border-border">v1.0.2</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="relative hidden md:block">
+                <input type="text" id="search-input" placeholder="Search docs..." class="w-64 pl-9 pr-4 py-1.5 bg-bglight border border-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all">
+                <svg class="w-4 h-4 text-gray-400 absolute left-3 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+            <a href="https://github.com/vibieprince/Swasthya-AI-CORE" target="_blank" class="text-secondary hover:text-gray-900 dark:hover:text-white transition-colors" title="GitHub Repository">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path></svg>
+            </a>
+            <button id="theme-toggle" type="button" class="text-secondary hover:text-gray-900 dark:hover:text-white transition-colors focus:outline-none">
+                <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464a1 1 0 10-1.414 1.414l.707.707a1 1 0 001.414-1.414l-.707-.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 100 2h1z" clip-rule="evenodd"></path></svg>
+            </button>
+            <a href="#about" class="text-xs font-semibold text-gray-700 bg-gray-50 border border-border px-3 py-1.5 rounded-md hover:bg-gray-100 transition-colors shadow-sm">Developer Profile</a>
+        </div>
+    </nav>
+
+    <div class="flex flex-1 max-w-[1400px] mx-auto w-full">
+        <aside id="sidebar" class="w-64 flex-shrink-0 border-r border-border bg-white pt-6 pb-20 px-4 overflow-y-auto md:sticky md:top-[73px] md:h-[calc(100vh-73px)]">
+            <nav class="space-y-0.5">
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-2 px-3">Overview</div>
+                <a href="#quick-start" class="nav-link">Introduction</a>
+                <a href="#architecture" class="nav-link">Architecture</a>
+                <a href="#api-workflow" class="nav-link">Complete Workflow</a>
+                <a href="#authentication" class="nav-link">Authentication</a>
+                
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-6 px-3">API Reference</div>
+                <a href="#context-api" class="nav-link">Context API</a>
+                <a href="#discovery-api" class="nav-link">Discovery API</a>
+                <a href="#progress-api" class="nav-link">Progress API</a>
+                <a href="#health-api" class="nav-link">Health API</a>
+                
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-6 px-3">Guides & Examples</div>
+                <a href="#integration-examples" class="nav-link">Integration Examples</a>
+                <a href="#async-discovery" class="nav-link">Async Discovery</a>
+                <a href="#error-handling" class="nav-link">Error Handling</a>
+                
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-6 px-3">Resources</div>
+                <a href="#best-practices" class="nav-link">Best Practices</a>
+                <a href="#faq" class="nav-link">FAQ</a>
+                <a href="#version-history" class="nav-link">Version History</a>
+                <a href="#about" class="nav-link">About</a>
+            </nav>
+        </aside>
+
+        <main class="flex-1 min-w-0 px-6 py-10 md:px-12 lg:px-16 max-w-[900px] docs-content">
+            
+            <div id="quick-start" class="mb-16">
+                <h1 class="text-4xl font-bold text-gray-900 tracking-tight mb-4">API Documentation</h1>
+                
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">Production Ready</span>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-200">v1.0.2</span>
+                </div>
+                
+                <p class="text-gray-700 leading-relaxed mb-6 text-lg">
+                    Welcome to the official developer documentation for <strong>SWASTHYA AI CORE</strong>. This high-performance gateway provides an asynchronous orchestration system designed to abstract complex healthcare intelligence and discovery actions into clean, reliable, and predictable web structures.
+                </p>
+                <p class="text-gray-700 leading-relaxed mb-8">
+                    SWASTHYA AI CORE handles multi-pass conversational parsing, state segregation, web discovery pipelines via optimized <strong>Playwright Browser Pooling</strong>, and distributed task management via <strong>RabbitMQ</strong> and <strong>Redis</strong> backend state stores. This abstracts all complex distributed workflows into simple web primitives for smooth client integrations.
+                </p>
+                <div class="flex gap-4">
+                    <a href="#api-workflow" class="bg-gray-900 text-white px-5 py-2.5 rounded-md font-medium hover:bg-gray-800 transition-colors shadow">Read Workflow</a>
+                    <a href="https://github.com/vibieprince/Swasthya-AI-CORE" target="_blank" class="bg-white text-gray-700 border border-border px-5 py-2.5 rounded-md font-medium hover:bg-gray-50 transition-colors shadow-sm">View Repository</a>
+                </div>
+            </div>
+
+            <section id="architecture">
+                <h2 class="section-header">Architecture</h2>
+                <p class="text-gray-700 mb-6">
+                    SWASTHYA AI CORE utilizes an completely asynchronous, state-segregated system design. High-throughput entryways are managed via <strong>FastAPI</strong> endpoints, non-blocking background orchestration jobs pass over robust <strong>RabbitMQ</strong> message topologies, and live task metrics updates register in memory within an optimized <strong>Redis</strong> cluster.
+                </p>
+                
+                <div class="svg-container shadow-sm">
+                    <svg width="600" height="400" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#57606a" />
+                            </marker>
+                        </defs>
+                        <rect x="30" y="100" width="110" height="70" rx="6" fill="#ffffff" stroke="#d0d7de" stroke-width="2"/>
+                        <text x="85" y="140" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#24292f" text-anchor="middle">MedPath Client</text>
+                        
+                        <rect x="220" y="100" width="120" height="70" rx="6" fill="#ddf4ff" stroke="#0969da" stroke-width="2"/>
+                        <text x="280" y="135" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#0969da" text-anchor="middle">FastAPI</text>
+                        <text x="280" y="152" font-family="Inter, sans-serif" font-size="11" fill="#57606a" text-anchor="middle">Gateway Engine</text>
+                        
+                        <rect x="440" y="100" width="120" height="70" rx="6" fill="#fcf3cc" stroke="#9e6a03" stroke-width="2"/>
+                        <text x="500" y="135" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#9e6a03" text-anchor="middle">RabbitMQ</text>
+                        <text x="500" y="152" font-family="Inter, sans-serif" font-size="11" fill="#57606a" text-anchor="middle">Task Broker</text>
+                        
+                        <rect x="440" y="240" width="120" height="70" rx="6" fill="#dafbe1" stroke="#1a7f37" stroke-width="2"/>
+                        <text x="500" y="275" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#1a7f37" text-anchor="middle">Celery Worker</text>
+                        <text x="500" y="292" font-family="Inter, sans-serif" font-size="11" fill="#57606a" text-anchor="middle">Playwright Engine</text>
+                        
+                        <rect x="220" y="240" width="120" height="70" rx="6" fill="#ffebe9" stroke="#cf222e" stroke-width="2"/>
+                        <text x="280" y="275" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="#cf222e" text-anchor="middle">Redis Cache</text>
+                        <text x="280" y="292" font-family="Inter, sans-serif" font-size="11" fill="#57606a" text-anchor="middle">Progress State Store</text>
+                        
+                        <line x1="140" y1="125" x2="210" y2="125" stroke="#57606a" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        <line x1="210" y1="145" x2="140" y2="145" stroke="#57606a" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        
+                        <line x1="340" y1="135" x2="430" y2="135" stroke="#57606a" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        <line x1="500" y1="170" x2="500" y2="230" stroke="#57606a" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        <line x1="440" y1="275" x2="350" y2="275" stroke="#57606a" stroke-width="2" marker-end="url(#arrowhead)"/>
+                        
+                        <line x1="280" y1="240" x2="280" y2="180" stroke="#57606a" stroke-width="2" marker-end="url(#arrowhead)" stroke-dasharray="4"/>
+                        <line x1="110" y1="170" x2="215" y2="255" stroke="#57606a" stroke-width="2" marker-end="url(#arrowhead)" stroke-dasharray="4"/>
+                    </svg>
+                </div>
+            </section>
+
+            <section id="api-workflow">
+                <h2 class="section-header">Complete Workflow</h2>
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 text-sm text-yellow-800 rounded-r-md">
+                    <strong>CRITICAL CONCEPT:</strong> The single biggest point of confusion is how the Context API connects to the Discovery API. You must forward the nested <code class="bg-yellow-100 px-1 rounded font-mono">context_data</code> object from the Context response directly into the Discovery request. Do not manually restructure it.
+                </div>
+                
+                <div class="space-y-6">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold mr-4 mt-1">1</div>
+                        <div>
+                            <h3 class="text-md font-semibold text-gray-900 mb-1">Context Analysis Loop</h3>
+                            <p class="text-gray-600 text-sm">Submit raw text blocks into the Context API. If the payload response establishes <code class="font-mono bg-bglight px-1 rounded">is_context_sufficient == false</code>, block lookups, capture the generated <code class="font-mono bg-bglight px-1 rounded">followup_question</code>, and update your conversational view.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold mr-4 mt-1">2</div>
+                        <div>
+                            <h3 class="text-md font-semibold text-gray-900 mb-1">Discovery Job Handshake</h3>
+                            <p class="text-gray-600 text-sm">Once sufficiency conditions pass, extract the compiled, nested <code class="font-mono bg-bglight px-1 rounded">context_data</code> payload block and map it directly into the Discovery gateway interface. This returns a task trace key immediately.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold mr-4 mt-1">3</div>
+                        <div>
+                            <h3 class="text-md font-semibold text-gray-900 mb-1">State Progress Polling</h3>
+                            <p class="text-gray-600 text-sm">Track real-time background orchestration milestones by querying the transient Task Progress engine until status traces mark operational completion.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 class="sub-header">Complete End-to-End Javascript Example</h2>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre><code class="language-javascript">const API_BASE = "https://api.medpath.in/api";
+
+async function findHospitals(patientMessage) {
+    // 1. Analyze Context with Core Models
+    const contextRes = await fetch(`${API_BASE}/context/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: patientMessage })
+    });
+    const contextResponse = await contextRes.json();
+
+    // Verify context state conditions before scheduling lookup
+    if (!contextResponse.is_context_sufficient) {
+        console.log("Ask User: " + contextResponse.followup_question);
+        return { status: "incomplete", prompt: contextResponse.followup_question };
+    }
+
+    // 2. Queue Asynchronous Discovery using exact context_data payload block
+    const discoveryRes = await fetch(`${API_BASE}/discovery/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+            context: contextResponse.context_data, // <-- CRITICAL STEP
+            max_results: 4 
+        })
+    });
+    const { task_id } = await discoveryRes.json();
+
+    // 3. Poll Transient Progress Engine increments
+    return new Promise((resolve, reject) => {
+        const interval = setInterval(async () => {
+            const progressRes = await fetch(`${API_BASE}/tasks/${task_id}/progress`);
+            const progress = await progressRes.json();
+            
+            console.log(`Progress: ${progress.progress_percent}% - ${progress.current_stage}`);
+            
+            if (progress.status === "completed") {
+                clearInterval(interval);
+                resolve(progress.result.recommendations);
+            } else if (progress.status === "failed") {
+                clearInterval(interval);
+                reject(progress.error_message);
+            }
+        }, 2000); // Poll systematically every 2 seconds
+    });
+}</code></pre>
+                </div>
+            </section>
+
+            <section id="authentication">
+                <h2 class="section-header">Authentication</h2>
+                <p class="text-gray-700 mb-4">
+                    During the ongoing internal cluster prototyping and service validation phases, gateway verification layers register routing interfaces as entirely public internal access paths. 
+                </p>
+                <div class="bg-gray-50 border border-border p-4 rounded-md text-sm text-gray-600">
+                    <strong>Deployment Note:</strong> Requests passing between local container groups omit structural authorization header tracking rules. Ensure firewall setups isolate access layers prior to production cluster publishing routines.
+                </div>
+            </section>
+
+            <section id="context-api">
+                <h2 class="section-header">Context API</h2>
+                <p class="text-gray-600 mb-4">
+                    Processes raw conversational string sequences to identify patient symptoms, clinical severity markers, and implicit or explicit geographical boundaries.
+                </p>
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="badge-post">POST</span>
+                    <code class="text-gray-900 bg-gray-100 px-2 py-1 rounded text-sm font-mono">/api/context/analyze</code>
+                </div>
+
+                <h3 class="sub-header">Request Body (application/json)</h3>
+                <table class="schema-table">
+                    <thead>
+                        <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>message</code></td>
+                            <td>string</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td>The raw, unparsed message string supplied by the patient.</td>
+                        </tr>
+                        <tr>
+                            <td><code>context_id</code></td>
+                            <td>string | null</td>
+                            <td>Optional</td>
+                            <td><strong>Multi-turn conversations.</strong> Pass the <code class="font-mono bg-bglight px-1 rounded">context_id</code> returned by a previous response to continue the same conversation. Omit for a fresh conversation (fully backward compatible).</td>
+                        </tr>
+                        <tr>
+                            <td><code>correlation_id</code></td>
+                            <td>string | null</td>
+                            <td>Optional</td>
+                            <td>An optional tracing identifier useful for correlating backend distributed operations.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+
+                <h3 class="sub-header">Response Lifecycle Payloads</h3>
+                <p class="text-gray-700 mb-4 text-sm">
+                    SWASTHYA AI CORE enforces dynamic payload compression. If incoming messages are simple greetings (e.g., "Hello") or require detail aggregation ("I'm sick"), heavy nested structural models (like <code class="font-mono bg-bglight px-1 rounded">context_data</code>) are omitted entirely to save runtime throughput.
+                </p>
+
+                <h3 class="sub-header">Response Fields</h3>
+                <table class="schema-table">
+                    <thead>
+                        <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>context_id</code></td>
+                            <td>string</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td>The unique cryptographic execution identifier key generated by backend routing managers. Use this to continue conversations.</td>
+                        </tr>
+                        <tr>
+                            <td><code>session_version</code></td>
+                            <td>integer</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td>Increments whenever clinical context changes. Helps frontend detect updated recommendations. Used for conversation versioning.</td>
+                        </tr>
+                        <tr>
+                            <td><code>is_greeting</code></td>
+                            <td>boolean</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td>Flags whether incoming user content mirrors non-actionable opening phrases.</td>
+                        </tr>
+                        <tr>
+                            <td><code>is_context_sufficient</code></td>
+                            <td>boolean</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td><strong>CRITICAL GATEKEEPER.</strong> If evaluated as <code class="font-mono bg-bglight px-1 rounded">false</code>, block processing and trigger the followup string. If <code class="font-mono bg-bglight px-1 rounded">true</code>, initiate discovery pipelines immediately.</td>
+                        </tr>
+                        <tr>
+                            <td><code>needs_followup</code></td>
+                            <td>boolean</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td>Evaluates whether missing data sets require a chat-driven patient request.</td>
+                        </tr>
+                        <tr>
+                            <td><code>followup_question</code></td>
+                            <td>string | null</td>
+                            <td>Optional</td>
+                            <td>Deterministic, contextually targeted string to display directly to patients. Omitted or null when context needs match sufficiency benchmarks.</td>
+                        </tr>
+                        <tr>
+                            <td><code>missing_fields</code></td>
+                            <td>array[string]</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td>Tracks missing target fields like <code class="font-mono bg-bglight px-1 rounded">["location", "symptoms"]</code> to support custom diagnostic views.</td>
+                        </tr>
+                        <tr>
+                            <td><code>context_data</code></td>
+                            <td>object | null</td>
+                            <td>Optional</td>
+                            <td><strong>CRITICAL INJECTION PAYLOAD.</strong> Returned exclusively when sufficiency triggers evaluate as <code class="font-mono bg-bglight px-1 rounded">true</code>. Contains multi-layered nested data nodes mapping specific analytical flags.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 class="sub-header">Field Usage & Client Action</h3>
+                <div class="dev-note">
+                    <h4>What do I do with these fields?</h4>
+                    <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700">
+                        <li><strong><code class="font-mono bg-bglight px-1 rounded">context_id</code></strong>: Returned by Context API → Send back to Context API for follow-up messages → Also embedded inside context_data → Finally forwarded into Discovery API.</li>
+                        <li><strong><code class="font-mono bg-bglight px-1 rounded">session_version</code></strong>: Returned by Context API → Frontend stores it → If it changes, recommendations may have changed.</li>
+                        <li><strong><code class="font-mono bg-bglight px-1 rounded">context_data</code></strong>: Returned by Context API → Do NOT modify → Pass directly into Discovery API under <code class="font-mono bg-bglight px-1 rounded">"context": context_data</code>.</li>
+                    </ul>
+                </div>
+
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 text-sm text-blue-800 rounded-r-md">
+                    <strong>Client Action Box</strong><br/>
+                    If <code class="bg-blue-100 px-1 rounded font-mono">is_context_sufficient == false</code>:<br/>
+                    ↳ Display <code class="font-mono bg-blue-100 px-1 rounded">followup_question</code> → Collect user's answer → Call Context API again → Pass previous <code class="font-mono bg-blue-100 px-1 rounded">context_id</code>.<br/><br/>
+                    If <code class="bg-blue-100 px-1 rounded font-mono">is_context_sufficient == true</code>:<br/>
+                    ↳ Extract <code class="font-mono bg-blue-100 px-1 rounded">context_data</code> → Call Discovery API.
+                </div>
+
+                <h3 class="sub-header">Example Request</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre><code class="language-json">{
+  "message": "I have severe chest pain and I live in South Delhi",
+  "correlation_id": "optional-trace-id-123"
+}</code></pre>
+                </div>
+            </section>
+
+            <section id="discovery-api">
+                <h2 class="section-header">Discovery API</h2>
+                <p class="text-gray-600 mb-4">
+                    Accepts the nested object structure extracted via parsing runs to instantly append background lookup items inside active cluster task worker queues.
+                </p>
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="badge-post">POST</span>
+                    <code class="text-gray-900 bg-gray-100 px-2 py-1 rounded text-sm font-mono">/api/discovery/search</code>
+                </div>
+
+                <h3 class="sub-header">Request Body (application/json)</h3>
+                <table class="schema-table">
+                    <thead>
+                        <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>context</code></td>
+                            <td>object</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td>The raw, unedited nested <code class="font-mono bg-bglight px-1 rounded">context_data</code> block extracted out of previous Context API verification lookups.</td>
+                        </tr>
+                        <tr>
+                            <td><code>max_results</code></td>
+                            <td>integer</td>
+                            <td>Optional</td>
+                            <td>Sets constraints on total returned target items. Defaults to 4 items. Constraints bound execution ranges between 2 and 10 results.</td>
+                        </tr>
+                        <tr>
+                            <td><code>correlation_id</code></td>
+                            <td>string | null</td>
+                            <td>Optional</td>
+                            <td>An optional tracing identifier useful for correlating backend distributed operations.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 class="sub-header">Response Fields</h3>
+                <table class="schema-table">
+                    <thead>
+                        <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>task_id</code></td>
+                            <td>string</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td>The unique cryptographic execution identifier key generated by background task routing managers. Use this to poll live worker status blocks.</td>
+                        </tr>
+                        <tr>
+                            <td><code>status</code></td>
+                            <td>string</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td>Initial state condition placeholder flag. Evaluates systematically as <code class="font-mono bg-bglight px-1 rounded">"queued"</code> upon instant endpoint resolution.</td>
+                        </tr>
+                        <tr>
+                            <td><code>message</code></td>
+                            <td>string</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td>Informational message confirming the background task was queued.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3 class="sub-header">Field Usage & Client Action</h3>
+                <div class="dev-note">
+                    <h4>What do I do with these fields?</h4>
+                    <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700">
+                        <li><strong><code class="font-mono bg-bglight px-1 rounded">task_id</code></strong>: Returned by Discovery API → Poll <code class="font-mono bg-bglight px-1 rounded">GET /api/tasks/{task_id}/progress</code> until <code class="font-mono bg-bglight px-1 rounded">status</code> becomes <code class="font-mono bg-bglight px-1 rounded">completed</code>.</li>
+                    </ul>
+                </div>
+
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 text-sm text-blue-800 rounded-r-md">
+                    <strong>Client Action Box</strong><br/>
+                    After Discovery API:<br/>
+                    ↳ Store <code class="font-mono bg-blue-100 px-1 rounded">task_id</code> → Begin polling Task endpoint every 2 seconds until <code class="font-mono bg-blue-100 px-1 rounded">status == "completed"</code>.
+                </div>
+
+                <h3 class="sub-header">Example Request</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre><code class="language-json">{
+  "context": {
+    "context_id": "c1f7b8-d2e4-419b-a01c-66299b8ac424",
+    "language": { "primary": "en", "detected_confidence": 0.98 },
+    "clinical": { "urgency_score": 0.9, "primary_symptoms": ["chest_pain"] },
+    "validation": { "is_valid": true }
+  },
+  "max_results": 4
+}</code></pre>
+                </div>
+
+                <div class="dev-note">
+                    <h4>Next Steps Handshake</h4>
+                    <p class="text-sm text-gray-700">
+                        Capture the returned tracking <code class="font-mono bg-bglight px-1 rounded">task_id</code> parameter instantly within client-side operational scopes, and immediately begin background interval polling routines hitting the progress verification routing interfaces.
+                    </p>
+                </div>
+            </section>
+
+            <section id="progress-api">
+                <h2 class="section-header">Task Progress API</h2>
+                <p class="text-gray-600 mb-4">
+                    Reads transient progress parameters tracked inside in-memory data caches, enabling live operational visibility over background collection processes.
+                </p>
+                <div class="flex items-center gap-3 mb-6">
+                    <span class="badge-get">GET</span>
+                    <code class="text-gray-900 bg-gray-100 px-2 py-1 rounded text-sm font-mono">/api/tasks/{task_id}/progress</code>
+                </div>
+
+                <h3 class="sub-header">Response Fields</h3>
+                <table class="schema-table">
+                    <thead>
+                        <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>status</code></td>
+                            <td>string</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td>State enumeration strings tracking background worker lifecycles: <code class="font-mono bg-bglight px-1 rounded">"queued"</code>, <code class="font-mono bg-bglight px-1 rounded">"processing"</code>, <code class="font-mono bg-bglight px-1 rounded">"completed"</code>, or <code class="font-mono bg-bglight px-1 rounded">"failed"</code>.</td>
+                        </tr>
+                        <tr>
+                            <td><code>progress_percent</code></td>
+                            <td>integer</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td>Numerical state counter tracking compilation progress between 0 and 100 percent. Maps seamlessly to client UI progress indicators.</td>
+                        </tr>
+                        <tr>
+                            <td><code>current_stage</code></td>
+                            <td>string</td>
+                            <td><span class="required-badge">✅ Required</span></td>
+                            <td>Descriptive tracing text blocks detailing active steps (e.g., <code class="font-mono bg-bglight px-1 rounded">"Researching..."</code>, <code class="font-mono bg-bglight px-1 rounded">"Scraping provider data portals via Playwright..."</code>).</td>
+                        </tr>
+                        <tr>
+                            <td><code>result</code></td>
+                            <td>object | null</td>
+                            <td>Optional</td>
+                            <td>Defaults to null during active worker execution. Appends rich dataset models once status properties flag explicit operational completion.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 text-sm text-blue-800 rounded-r-md">
+                    <strong>Client Action Box</strong><br/>
+                    After Task Endpoint:<br/>
+                    ↳ If <code class="font-mono bg-blue-100 px-1 rounded">status == "completed"</code> → Stop polling → Display recommendations from <code class="font-mono bg-blue-100 px-1 rounded">result.recommendations</code>.
+                </div>
+
+                <h3 class="sub-header">Detailed Recommendation Model Schema</h3>
+                <p class="text-gray-700 text-sm mb-4">
+                    Once background extraction algorithms aggregate information from provider sites, the inner <code class="font-mono bg-bglight px-1 rounded">result.recommendations</code> collection maps out arrays populated with these unified telemetry items:
+                </p>
+                <table class="schema-table">
+                    <thead>
+                        <tr><th>Nested Field</th><th>Type</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>hospital_name</code></td>
+                            <td>string</td>
+                            <td>The target verified official compound entity legal nomenclature text.</td>
+                        </tr>
+                        <tr>
+                            <td><code>hospital_type</code></td>
+                            <td>string</td>
+                            <td>Government or Private marker identifying administrative boundaries.</td>
+                        </tr>
+                        <tr>
+                            <td><code>formatted_address</code></td>
+                            <td>string | null</td>
+                            <td>The physical geographical string address of the hospital.</td>
+                        </tr>
+                        <tr>
+                            <td><code>distance_km</code></td>
+                            <td>float | null</td>
+                            <td>Computed spatial distance parameters separating the user's identified landmark and provider coordinate groups.</td>
+                        </tr>
+                        <tr>
+                            <td><code>estimated_travel_time_minutes</code></td>
+                            <td>integer | null</td>
+                            <td>Estimated minutes required for travel.</td>
+                        </tr>
+                        <tr>
+                            <td><code>contact_number</code></td>
+                            <td>string | null</td>
+                            <td>Active emergency department or clinic triage telephone verification data lines.</td>
+                        </tr>
+                        <tr>
+                            <td><code>website</code></td>
+                            <td>string | null</td>
+                            <td>Official hospital web portal.</td>
+                        </tr>
+                        <tr>
+                            <td><code>accreditations</code></td>
+                            <td>array[string]</td>
+                            <td>Quality assurance markers like NABH, JCI, etc.</td>
+                        </tr>
+                        <tr>
+                            <td><code>overall_rating</code></td>
+                            <td>float | null</td>
+                            <td>Aggregated public ranking indices combined across map registers and data source sets.</td>
+                        </tr>
+                        <tr>
+                            <td><code>review_count</code></td>
+                            <td>integer | null</td>
+                            <td>Volume of collected patient reviews.</td>
+                        </tr>
+                        <tr>
+                            <td><code>has_emergency</code></td>
+                            <td>boolean</td>
+                            <td>Verified indicator marking the explicit functional maintenance of 24/7 critical intensive care response pipelines.</td>
+                        </tr>
+                        <tr>
+                            <td><code>has_icu</code></td>
+                            <td>boolean</td>
+                            <td>True if intensive care units are verified to be operational.</td>
+                        </tr>
+                        <tr>
+                            <td><code>estimated_cost_range</code></td>
+                            <td>string | null</td>
+                            <td>Textual description or estimate of expected procedural bounds.</td>
+                        </tr>
+                        <tr>
+                            <td><code>overall_score</code></td>
+                            <td>float</td>
+                            <td>Core weighted clinical prioritization rank calculation scale bound between 0.0 and 1.0.</td>
+                        </tr>
+                        <tr>
+                            <td><code>summary</code></td>
+                            <td>string</td>
+                            <td>A concise, plain-language clinical justification summarizing why this specific facility matches the patient's immediate health needs.</td>
+                        </tr>
+                        <tr>
+                            <td><code>pros</code></td>
+                            <td>array[string]</td>
+                            <td>Extracted highlight lists tracking matching diagnostic equipment, domain specialists, or rapid processing pipelines.</td>
+                        </tr>
+                        <tr>
+                            <td><code>cons</code></td>
+                            <td>array[string]</td>
+                            <td>Identified risk mitigation strings flagging overcrowding, ongoing specialized department maintenance, or logistical limitations.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="health-api">
+                <h2 class="section-header">Health API</h2>
+                <p class="text-gray-600 text-sm mb-4">Verifies core operational status across distributed microservice elements.</p>
+                <div class="flex items-center gap-3 mb-4">
+                    <span class="badge-get">GET</span>
+                    <code class="text-gray-900 bg-gray-100 px-2 py-1 rounded text-sm font-mono">/api/health</code>
+                </div>
+
+                <h3 class="sub-header">Response Example</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre><code class="language-json">{
+  "status": "healthy",
+  "timestamp": "2026-07-06T14:26:00Z",
+  "services": {
+    "rabbitmq": "connected",
+    "redis": "connected",
+    "gemini_gateway": "online"
+  }
+}</code></pre>
+                </div>
+            </section>
+
+            <section id="integration-examples">
+                <h2 class="section-header">Integration Examples — Complete Conversation Lifecycle</h2>
+
+                <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8 text-sm text-yellow-800 rounded-r-md">
+                    <strong>Architecture Note (v1.0.2+):</strong> The Context API maintains server-side conversation memory using Redis (30-minute rolling TTL). The client stores the <code class="bg-yellow-100 px-1 rounded font-mono">context_id</code> returned by each response and echoes it back in the next request. The backend preserves all previously extracted clinical data and keeps the session alive after context completion for post-discovery follow-ups. <strong>You never need to resend previous messages.</strong>
+                </div>
+
+                <!-- Scenario 1: Greeting -->
+                <div class="mb-10">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="flex-shrink-0 w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-sm">1</span>
+                        <h3 class="text-base font-semibold text-gray-900">Scenario 1 — Greeting</h3>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-3 ml-10">User opens the app and sends a generic greeting. The backend detects it via the deterministic fast path (no LLM call) and returns a localized response in under 1 second.</p>
+
+                    <div class="code-block ml-10">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-json">// Request — no context_id needed for the first message
+POST /api/context/analyze
+{
+  "message": "Hello"
+}
+
+// Response
+{
+  "context_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",  // <-- SAVE THIS
+  "is_greeting": true,
+  "is_context_sufficient": false,
+  "needs_followup": true,
+  "followup_question": "Hello! I'm MedPath AI. Please describe your symptoms...",
+  "processing_latency_ms": 820
+}</code></pre>
+                    </div>
+
+                    <div class="dev-note ml-10">
+                        <h4>Client Action</h4>
+                        <ul class="list-disc pl-4 space-y-1 text-sm text-gray-700">
+                            <li><strong>Store <code class="font-mono bg-bglight px-1 rounded">context_id</code></strong> in your component state or URL query param. You will need it for every subsequent request in this conversation.</li>
+                            <li>Render <code class="font-mono bg-bglight px-1 rounded">followup_question</code> in the chat UI as the AI's reply.</li>
+                            <li>Wait for the user to type their next message.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Scenario 2: Incomplete Context (Turn 2) -->
+                <div class="mb-10">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="flex-shrink-0 w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-sm">2</span>
+                        <h3 class="text-base font-semibold text-gray-900">Scenario 2 — Incomplete Context (Follow-up Turn)</h3>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-3 ml-10">User provides their symptom. The backend <em>loads</em> the stored PatientContext from Redis using the <code class="font-mono bg-bglight px-1 rounded">context_id</code>, runs Pass 2 in <strong>merge mode</strong>, and determines that a location is still missing.</p>
+
+                    <div class="code-block ml-10">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-json">// Request — echo back the context_id from Turn 1
+POST /api/context/analyze
+{
+  "context_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "message": "I have severe abdominal pain"
+}
+
+// Response — symptoms are now stored in Redis. Location still missing.
+{
+  "context_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",  // same ID
+  "is_context_sufficient": false,
+  "needs_followup": true,
+  "followup_question": "Where are you currently located? (City or area)",
+  "missing_fields": ["location"],
+  "processing_latency_ms": 1240
+}</code></pre>
+                    </div>
+
+                    <div class="dev-note ml-10">
+                        <h4>Client Action</h4>
+                        <ul class="list-disc pl-4 space-y-1 text-sm text-gray-700">
+                            <li>Keep the same <code class="font-mono bg-bglight px-1 rounded">context_id</code>. Do not generate a new one.</li>
+                            <li>Render <code class="font-mono bg-bglight px-1 rounded">followup_question</code> in the chat.</li>
+                            <li><strong>Do not resend "I have severe abdominal pain" again.</strong> The backend has it stored in Redis. Only send the user's new reply.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Scenario 3: Context Completed -->
+                <div class="mb-10">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="flex-shrink-0 w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-sm">3</span>
+                        <h3 class="text-base font-semibold text-gray-900">Scenario 3 — Context Completed</h3>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-3 ml-10">User provides their location. The backend merges it with the stored symptom data, sufficiency passes, and the response includes the full <code class="font-mono bg-bglight px-1 rounded">context_data</code>. The Redis session is <strong>kept alive</strong> (marked <code class="font-mono bg-bglight px-1 rounded">context_completed=true</code>) so that post-discovery follow-up questions (pricing, insurance, appointments) can still access this conversational context for up to 30 minutes.</p>
+
+                    <div class="code-block ml-10">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-json">// Request — only the new piece of information
+POST /api/context/analyze
+{
+  "context_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "message": "I'm near Pari Chowk, Greater Noida"
+}
+
+// Response — is_context_sufficient = true. context_data is now populated.
+// Redis session is kept alive (context_completed=true). TTL is refreshed.
+{
+  "context_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "session_version": 1,
+  "is_context_sufficient": true,
+  "needs_followup": false,
+  "context_data": {                // <-- EXTRACT THIS ENTIRE OBJECT
+    "context_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "session_version": 1,
+    "clinical": {
+      "symptoms": ["severe abdominal pain"],
+      "patient_location": { "city": "Greater Noida", "raw_location": "Pari Chowk, Greater Noida" },
+      "urgency_level": "urgent",
+      "is_emergency": false
+    }
+  },
+  "processing_latency_ms": 1080
+}</code></pre>
+                    </div>
+
+                    <div class="dev-note ml-10">
+                        <h4>Client Action</h4>
+                        <ul class="list-disc pl-4 space-y-1 text-sm text-gray-700">
+                            <li>Extract <code class="font-mono bg-bglight px-1 rounded">response.context_data</code> — this is a complete, structured object.</li>
+                            <li>Pass it <strong>verbatim</strong> as the <code class="font-mono bg-bglight px-1 rounded">context</code> field of the Discovery API request. No transformation needed.</li>
+                            <li>Keep the <code class="font-mono bg-bglight px-1 rounded">context_id</code> stored. The session remains alive on the backend for 30 minutes for post-discovery follow-ups.</li>
+                            <li>To start a completely new search, simply omit <code class="font-mono bg-bglight px-1 rounded">context_id</code> in a future request.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Scenario 4: Discovery -->
+                <div class="mb-10">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="flex-shrink-0 w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-sm">4</span>
+                        <h3 class="text-base font-semibold text-gray-900">Scenario 4 — Discovery Job Submission</h3>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-3 ml-10">Submit the <code class="font-mono bg-bglight px-1 rounded">context_data</code> object directly as the <code class="font-mono bg-bglight px-1 rounded">context</code> field. <strong>Do not wrap the entire Context API response.</strong> Do not reconstruct or modify the object. The Discovery API queues a background job in RabbitMQ and returns a <code class="font-mono bg-bglight px-1 rounded">task_id</code> immediately.</p>
+
+                    <div class="code-block ml-10">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-json">// Request — forward context_data verbatim from the Context API response
+POST /api/discovery/search
+{
+  "context": &lt;context_data object from Context API&gt;,
+  "max_results": 4
+}
+
+// Response — immediate. The actual search runs in background.
+{
+  "task_id": "9f3e7b12-0c4d-4a81-a9b2-f823c6d15e90",
+  "status": "queued",
+  "message": "Discovery task queued successfully"
+}</code></pre>
+                    </div>
+
+                    <div class="dev-note ml-10">
+                        <h4>Client Action</h4>
+                        <ul class="list-disc pl-4 space-y-1 text-sm text-gray-700">
+                            <li>Save <code class="font-mono bg-bglight px-1 rounded">task_id</code> in component state (or URL, for refresh resilience).</li>
+                            <li>Show a loading indicator to the user ("Searching for hospitals…").</li>
+                            <li>Immediately begin polling <code class="font-mono bg-bglight px-1 rounded">GET /api/tasks/{task_id}/progress</code> every <strong>2–3 seconds</strong>.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Scenario 5: Progress Polling -->
+                <div class="mb-10">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="flex-shrink-0 w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-sm">5</span>
+                        <h3 class="text-base font-semibold text-gray-900">Scenario 5 — Progress Polling</h3>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-3 ml-10">The worker streams real-time updates to Redis at each pipeline stage. Poll every 2–3 seconds. Map <code class="font-mono bg-bglight px-1 rounded">progress_percent</code> to a progress bar and <code class="font-mono bg-bglight px-1 rounded">current_stage</code> to a status label.</p>
+
+                    <div class="code-block ml-10">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-json">// Poll 1 (0%) — immediately after submission
+GET /api/tasks/9f3e7b12.../progress
+{ "status": "queued",      "progress_percent": 0,  "current_stage": "Queued"      }
+
+// Poll 2 (10%)
+{ "status": "processing",  "progress_percent": 10, "current_stage": "Planning"    }
+
+// Poll 3 (25%)
+{ "status": "processing",  "progress_percent": 25, "current_stage": "Searching"   }
+
+// Poll 4 (55%)
+{ "status": "processing",  "progress_percent": 55, "current_stage": "Research"    }
+
+// Poll 5 (75%)
+{ "status": "processing",  "progress_percent": 75, "current_stage": "Ranking"     }
+
+// Poll 6 (90%)
+{ "status": "processing",  "progress_percent": 90, "current_stage": "Explanation" }
+
+// Poll 7 (100%) — FINAL
+{ "status": "completed",   "progress_percent": 100, "current_stage": "Completed",
+  "result": { "recommendations": [...] } }</code></pre>
+                    </div>
+
+                    <div class="dev-note ml-10">
+                        <h4>Client Action</h4>
+                        <ul class="list-disc pl-4 space-y-1 text-sm text-gray-700">
+                            <li><code class="font-mono bg-bglight px-1 rounded">status == "processing"</code> → update progress bar, wait for next poll.</li>
+                            <li><code class="font-mono bg-bglight px-1 rounded">status == "completed"</code> → <strong>stop polling immediately</strong>, render recommendations.</li>
+                            <li><code class="font-mono bg-bglight px-1 rounded">status == "failed"</code> → stop polling, display <code class="font-mono bg-bglight px-1 rounded">error_message</code> to user.</li>
+                            <li>Poll interval: <strong>2–3 seconds</strong>. Never poll faster than 1 second.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Scenario 6: Completion -->
+                <div class="mb-10">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="flex-shrink-0 w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-sm">6</span>
+                        <h3 class="text-base font-semibold text-gray-900">Scenario 6 — Session Expiry (Error Handling)</h3>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-3 ml-10">If the user takes longer than <strong>15 minutes</strong> to reply to a follow-up question, the Redis session expires. Sending the stale <code class="font-mono bg-bglight px-1 rounded">context_id</code> returns HTTP <strong>410 Gone</strong>.</p>
+
+                    <div class="code-block ml-10">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-json">// Stale context_id after 15 minutes of inactivity
+POST /api/context/analyze
+{
+  "context_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "message": "I'm near Pari Chowk"
+}
+
+// HTTP 410 Gone
+{
+  "code": "CONTEXT_EXPIRED",
+  "message": "Conversation session 'a1b2c3d4...' has expired. Please start a new conversation.",
+  "detail": "Your conversation session has expired. Please start a new conversation by omitting context_id."
+}</code></pre>
+                    </div>
+
+                    <div class="dev-note ml-10">
+                        <h4>Client Action</h4>
+                        <ul class="list-disc pl-4 space-y-1 text-sm text-gray-700">
+                            <li>Detect HTTP <strong>410</strong> or <code class="font-mono bg-bglight px-1 rounded">code == "CONTEXT_EXPIRED"</code>.</li>
+                            <li>Clear your stored <code class="font-mono bg-bglight px-1 rounded">context_id</code>.</li>
+                            <li>Inform the user: "Your session expired — please describe your symptoms again."</li>
+                            <li>On the next request, omit <code class="font-mono bg-bglight px-1 rounded">context_id</code> to start a fresh conversation.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Scenario 7: Post Discovery Context Update -->
+                <div class="mb-10">
+                    <div class="flex items-center gap-3 mb-3">
+                        <span class="flex-shrink-0 w-7 h-7 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold text-sm">7</span>
+                        <h3 class="text-base font-semibold text-gray-900">Scenario 7 — Post Discovery Context Update</h3>
+                    </div>
+                    <p class="text-gray-600 text-sm mb-3 ml-10">After a successful discovery, a user might provide new clinical information (e.g., "Actually I also have diabetes"). Because the Redis session remains active for 30 minutes, you can send this new message to the Context API with the <strong>same <code class="font-mono bg-bglight px-1 rounded">context_id</code></strong>. The backend will perform Delta Extraction and increment the <code class="font-mono bg-bglight px-1 rounded">session_version</code>.</p>
+
+                    <div class="code-block ml-10">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                        <pre><code class="language-json">// Request — sending new information after Discovery has completed
+POST /api/context/analyze
+{
+  "context_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "message": "Actually I also have diabetes"
+}
+
+// Response — context_data is updated, and session_version increments
+{
+  "context_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "session_version": 2, // <-- INCREMENTED
+  "is_context_sufficient": true,
+  "context_data": { ... }
+}</code></pre>
+                    </div>
+
+                    <div class="dev-note ml-10">
+                        <h4>Client Action</h4>
+                        <ul class="list-disc pl-4 space-y-1 text-sm text-gray-700">
+                            <li>Compare the returned <code class="font-mono bg-bglight px-1 rounded">session_version</code> with your stored version.</li>
+                            <li>If <code class="font-mono bg-bglight px-1 rounded">session_version</code> increased, it means the clinical context changed.</li>
+                            <li>Prompt the user: "Your health profile was updated. Would you like to search for hospitals again?" or automatically re-run the Discovery API with the new <code class="font-mono bg-bglight px-1 rounded">context_data</code>.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3 class="sub-header">Optional Behaviour Notes</h3>
+                <ul class="list-disc pl-5 space-y-3 text-gray-700 mb-10">
+                    <li><strong>When to send <code class="font-mono bg-bglight px-1 rounded">context_id</code>:</strong> Send it on every follow-up message to continue an existing conversation.</li>
+                    <li><strong>When NOT to send <code class="font-mono bg-bglight px-1 rounded">context_id</code>:</strong> Do not send it on the very first message of a new conversation, or when the user explicitly clicks "Start Over".</li>
+                    <li><strong>When to send <code class="font-mono bg-bglight px-1 rounded">correlation_id</code>:</strong> Send it if your frontend uses distributed tracing (e.g., Datadog, Sentry) and you want to correlate backend logs with frontend sessions.</li>
+                    <li><strong>When NOT to send <code class="font-mono bg-bglight px-1 rounded">correlation_id</code>:</strong> If you do not have a tracing system, you can safely omit it.</li>
+                    <li><strong>When to use <code class="font-mono bg-bglight px-1 rounded">session_version</code>:</strong> Use it to detect if the patient added new clinical symptoms <em>after</em> you already showed them hospital recommendations, so you can offer to refresh the results.</li>
+                    <li><strong>When to ignore <code class="font-mono bg-bglight px-1 rounded">session_version</code>:</strong> If your UI does not allow users to chat after recommendations are shown, you can ignore this field.</li>
+                </ul>
+
+                <!-- Full JS Example -->
+                <h3 class="sub-header">Complete JavaScript Integration (Multi-Turn)</h3>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <pre><code class="language-javascript">const API_BASE = "https://api.medpath.in/api";
+
+class MedPathSession {
+    constructor() {
+        this.contextId = null;  // Persists across turns
+        this.taskId = null;
+        this.pollInterval = null;
+    }
+
+    async sendMessage(userMessage) {
+        const body = { message: userMessage };
+        // Echo context_id if we have one (conversation continuation)
+        if (this.contextId) body.context_id = this.contextId;
+
+        const res = await fetch(`${API_BASE}/context/analyze`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        });
+
+        // Handle session expiry
+        if (res.status === 410) {
+            this.contextId = null;
+            const err = await res.json();
+            return { type: "expired", message: "Session expired. Please start over." };
+        }
+
+        const data = await res.json();
+
+        // Always update contextId (it's the same value, but good practice)
+        this.contextId = data.context_id;
+
+        if (data.is_context_sufficient) {
+            // Context complete — hand off to Discovery
+            await this.startDiscovery(data.context_data);
+            return { type: "searching" };
+        } else {
+            // Still gathering info — show follow-up question
+            return { type: "followup", question: data.followup_question };
+        }
+    }
+
+    async startDiscovery(contextData) {
+        const res = await fetch(`${API_BASE}/discovery/search`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ context: contextData, max_results: 4 }),
+        });
+        const { task_id } = await res.json();
+        this.taskId = task_id;
+        this.contextId = null;  // Context spent — clear it
+
+        // Begin polling every 2 seconds
+        this.pollInterval = setInterval(() => this.pollProgress(), 2000);
+    }
+
+    async pollProgress() {
+        const res = await fetch(`${API_BASE}/tasks/${this.taskId}/progress`);
+        const data = await res.json();
+
+        // Update UI with progress_percent and current_stage
+        updateProgressBar(data.progress_percent, data.current_stage);
+
+        if (data.status === "completed") {
+            clearInterval(this.pollInterval);
+            renderRecommendations(data.result.recommendations);
+        } else if (data.status === "failed") {
+            clearInterval(this.pollInterval);
+            showError(data.error_message);
+        }
+    }
+}</code></pre>
+                </div>
+            </section>
+
+
+            <section id="async-discovery">
+                <h2 class="section-header">Asynchronous Web Discovery</h2>
+                <p class="text-gray-700 mb-4">
+                    SWASTHYA AI CORE isolates searching and web aggregation workloads from core routing thread pools to ensure uninterrupted request-response cycles. 
+                </p>
+                <p class="text-gray-700 mb-4">
+                    When data fetching sequences launch, backend worker clusters acquire operational configurations and spin up headless browser routines utilizing a custom <strong>Playwright Browser Pool</strong> pattern. 
+                </p>
+                <div class="dev-note">
+                    <h4>Playwright Browser Pooling Highlights</h4>
+                    <ul class="list-disc pl-5 space-y-2 text-sm text-gray-700">
+                        <li><strong>Performance Enhancements:</strong> Replaces structural setup/teardown friction by reusing live browser contexts, cutting initialization penalties down below 3 seconds.</li>
+                        <li><strong>Concurrency Safeguards:</strong> Enforces clean execution tab recycling rules, eliminating long-term memory accumulation issues typical of older Selenium setups.</li>
+                        <li><strong>Distributed Resilience:</strong> Worker states communicate tracking markers to Redis systematically at explicit execution intervals (25%, 50%, 75%, 100%).</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="error-handling">
+                <h2 class="section-header">Error Handling</h2>
+                <p class="text-gray-700 mb-4">
+                    System boundaries encapsulate schema tracking and connection exceptions behind standardized HTTP response formats.
+                </p>
+                <table class="schema-table">
+                    <thead>
+                        <tr><th>Status Code</th><th>Meaning</th><th>Recovery Strategy</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>400 Bad Request</code></td>
+                            <td>Invalid business logic parameters or structural payload parsing anomalies.</td>
+                            <td>Verify that client configurations transfer the raw internal <code class="font-mono bg-bglight px-1 rounded">context_data</code> nested model block directly without parsing overrides.</td>
+                        </tr>
+                        <tr>
+                            <td><code>404 Not Found</code></td>
+                            <td>The requested task sequence trace key does not exist inside active data caches.</td>
+                            <td>Cached items maintain an explicit 30-minute Time-To-Live (TTL). Prompt users to re-submit search requests if terminal interfaces remain open past cache expiry bounds.</td>
+                        </tr>
+                        <tr>
+                            <td><code>422 Unprocessable</code></td>
+                            <td>Type evaluation or schema property mismatches intercepted via Pydantic guards.</td>
+                            <td>Validate payload field properties against structured data models.</td>
+                        </tr>
+                        <tr>
+                            <td><code>500 Internal Error</code></td>
+                            <td>Unexpected core gateway failure or external API communication timeout.</td>
+                            <td>Display user fallback screens. If processing fails mid-cycle inside worker blocks, progress polls complete with a status property flagging <code class="font-mono bg-bglight px-1 rounded">"failed"</code>.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="best-practices">
+                <h2 class="section-header">Production Best Practices</h2>
+                <ul class="list-disc pl-5 space-y-3 text-gray-700">
+                    <li><strong>Polling Cadence Rules:</strong> Enforce strict client boundaries constraining progress checks to intervals between <strong>2 and 3 seconds</strong>. Excessive polling frequencies can quickly saturate active connection loops and exhaust distributed caching bandwidth.</li>
+                    <li><strong>Pipeline Isolation Boundaries:</strong> Keep parsing operations and resource discovery workflows decoupled. If input structures undergo changes, restart validation loops through the Context API first. Do not cycle discovery trackers until sufficiency validations explicitly pass.</li>
+                    <li><strong>State Persistence Tracking:</strong> Maintain the current operational <code class="font-mono bg-bglight px-1 rounded">task_id</code> within your local application tracking state. This ensures that application reloading routines or view recycling events do not disrupt active background lookup tracking.</li>
+                </ul>
+            </section>
+
+            <section id="faq">
+                <h2 class="section-header">Frequently Asked Questions</h2>
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="font-semibold text-gray-900">Why are Context extraction operations decoupled from Search routines?</h4>
+                        <p class="text-gray-600 text-sm">Separating these steps helps optimize system resource usage. Running deep web scrapers or ranking algorithms before a patient specifies their exact symptoms or location wastes significant computing resources. Decoupling helps ensure operations only scale up once clear search requirements are fully established.</p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-900">How long do background tracking objects persist within system memory?</h4>
+                        <p class="text-gray-600 text-sm">Task properties maintain data presence within central Redis state stores for a strict 30-minute window post-completion before being automatically cleared out via systematic eviction loops.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="version-history">
+                <h2 class="section-header">Version History</h2>
+                <div class="space-y-4 text-sm text-gray-700">
+                    <div class="border-l-2 border-primary pl-4">
+                        <p class="font-semibold text-gray-900">v1.0.2 (Current Target Release)</p>
+                        <ul class="list-disc pl-5 mt-1 space-y-1 text-gray-600">
+                            <li>Replaced older Selenium scraper models with highly responsive <strong>Playwright Async Context Pools</strong>.</li>
+                            <li>Configured instant greeting processing bypass structures using quick deterministic response templates (<3s).</li>
+                            <li>Optimized response payloads by entirely omitting heavy structural data properties during incomplete tracking sessions.</li>
+                            <li>Hardened data mapping logic with a structural fallback layer to intercept malformed downstream strings, preventing validation crashes.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="about" class="mb-24">
+                <h2 class="section-header">About the Architect</h2>
+                <div class="bg-bglight p-6 rounded-lg border border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm">
+                    <div>
+                        <p class="text-gray-900 font-bold text-xl">Prince Singh</p>
+                        <p class="text-secondary text-sm mb-2">Software Engineer — Distributed AI & System Topologies</p>
+                        <p class="text-gray-600 text-xs max-w-xl">Specializing in building low-latency automation engines, multi-agent pipeline orchestrations, high-efficiency data collection scrapers, and highly resilient message queue worker clusters.</p>
+                    </div>
+                    <div class="flex gap-3 text-sm font-medium shrink-0">
+                        <a href="https://github.com/vibieprince" target="_blank" class="text-primary hover:underline bg-white border border-border px-3 py-1.5 rounded-md shadow-sm">GitHub</a>
+                        <a href="https://linkedin.com/in/vibieprince" target="_blank" class="text-primary hover:underline bg-white border border-border px-3 py-1.5 rounded-md shadow-sm">LinkedIn</a>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Smooth Copy to Clipboard Implementation
+        function copyCode(button) {
+            const pre = button.nextElementSibling;
+            const code = pre.querySelector('code');
+            navigator.clipboard.writeText(code.innerText).then(() => {
+                const originalText = button.innerText;
+                button.innerText = 'Copied!';
+                button.style.backgroundColor = '#dafbe1';
+                button.style.color = '#1a7f37';
+                setTimeout(() => {
+                    button.innerText = originalText;
+                    button.style.backgroundColor = '';
+                    button.style.color = '';
+                }, 2000);
+            });
+        }
+
+        // Live Real-Time Interactive Text Filter / Search Index
+        const searchInput = document.getElementById('search-input');
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase().trim();
+            const sections = document.querySelectorAll('.docs-content section, .docs-content div[id]');
+            
+            sections.forEach(section => {
+                if (term === '' || section.innerText.toLowerCase().includes(term)) {
+                    section.style.display = 'block';
+                } else {
+                    section.style.display = 'none';
+                }
+            });
+        });
+
+        // Mobile Sidebar Drawer Menu Toggle Control
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const sidebar = document.getElementById('sidebar');
+        
+        mobileMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sidebar.classList.toggle('open');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768 && !sidebar.contains(e.target) && e.target !== mobileMenuBtn) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        // Dynamic Navigation Active State Tracker (Intersection Observer)
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px 0px -70% 0px',
+            threshold: 0
+        };
+
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.getAttribute('id');
+                    if (!id) return;
+                    document.querySelectorAll('.nav-link').forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === `#${id}`) {
+                            link.classList.add('active');
+                        }
+                    });
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.docs-content section, .docs-content div[id]').forEach(section => {
+            observer.observe(section);
+        });
+
+        // GitHub Persistent Dark/Light Mode Theme Toggle Logic Engine
+        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+        const themeToggleBtn = document.getElementById('theme-toggle');
+
+        if (document.documentElement.classList.contains('dark')) {
+            themeToggleLightIcon.classList.remove('hidden');
+        } else {
+            themeToggleDarkIcon.classList.remove('hidden');
+        }
+
+        themeToggleBtn.addEventListener('click', function() {
+            themeToggleDarkIcon.classList.toggle('hidden');
+            themeToggleLightIcon.classList.toggle('hidden');
+
+            if (localStorage.getItem('color-theme')) {
+                if (localStorage.getItem('color-theme') === 'light') {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('color-theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('color-theme', 'light');
+                }
+            } else {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('color-theme', 'light');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('color-theme', 'dark');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
