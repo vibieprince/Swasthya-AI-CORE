@@ -24,6 +24,7 @@ from src.common.exceptions import (
     LLMProviderError,
 )
 from src.common.logging import get_logger
+from src.config.settings import get_settings
 from src.infrastructure.llm.providers.base import BaseLLMProvider, LLMRequest, LLMResponse
 from src.infrastructure.llm.providers.gemini import GeminiProvider
 from src.infrastructure.llm.providers.mistral import MistralProvider
@@ -49,13 +50,14 @@ class LLMGateway:
     ) -> None:
         self._primary: BaseLLMProvider = primary or GeminiProvider()
         self._secondary: BaseLLMProvider = secondary or MistralProvider()
+        settings = get_settings()
         
         # ── Circuit Breaker State ──────────────────────────────────────────────
         self._consecutive_failures = 0
         self._cooldown_until = 0.0
         self._lock = asyncio.Lock()
-        self._failure_threshold = 2
-        self._cooldown_duration_sec = 300.0  # 5 minutes
+        self._failure_threshold = settings.llm_circuit_breaker_threshold
+        self._cooldown_duration_sec = float(settings.llm_circuit_breaker_cooldown)
 
     async def complete(
         self,
@@ -122,14 +124,19 @@ class LLMGateway:
             # Trip circuit breaker
             async with self._lock:
                 self._consecutive_failures += 1
-                if self._consecutive_failures >= self._failure_threshold:
+                
+                # Fast-trip circuit breaker on 429 (Rate Limited) to avoid hammering
+                is_rate_limit = getattr(primary_exc, "status_code", None) == 429
+                
+                if self._consecutive_failures >= self._failure_threshold or is_rate_limit:
                     self._cooldown_until = time.monotonic() + self._cooldown_duration_sec
                     logger.error(
                         "Circuit breaker TRIPPED",
                         extra={
                             "provider": self._primary.provider_name,
                             "threshold": self._failure_threshold,
-                            "cooldown_seconds": self._cooldown_duration_sec
+                            "cooldown_seconds": self._cooldown_duration_sec,
+                            "is_rate_limit_fast_trip": is_rate_limit,
                         }
                     )
 

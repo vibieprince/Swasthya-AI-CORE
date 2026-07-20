@@ -30,7 +30,7 @@ class ContextAnalyzeRequest(BaseModel):
 class ContextAnalyzeResponse(BaseModel):
     """Output payload representing the extracted and validated patient context."""
 
-    context_id: str
+    context_id: Optional[str]  # None for greetings (no session created yet)
     session_version: int
     
     # Intelligence
@@ -44,6 +44,11 @@ class ContextAnalyzeResponse(BaseModel):
     needs_followup: bool
     followup_question: Optional[str] = None
     missing_fields: list[str] = Field(default_factory=list)
+
+    # Session metadata — new fields; backward-compatible (clients may ignore)
+    conversation_state: Optional[str] = None   # Current ConversationState value
+    block_reason: Optional[str] = None         # Stable code, e.g. MANDATORY_PATIENT_LOCATION_REFUSED
+    block_message: Optional[str] = None        # User-facing explanation of why conversation is blocked
     
     # Full Context Object representation for downstream use (Omitted if incomplete)
     context_data: Optional[PatientContext] = None
@@ -55,17 +60,23 @@ class ContextAnalyzeResponse(BaseModel):
     def from_domain(cls, context: PatientContext) -> ContextAnalyzeResponse:
         """Convert a domain PatientContext into a Response DTO."""
         is_sufficient = context.validation.is_context_sufficient
+        is_greeting = context.language.is_greeting
         return cls(
-            context_id=context.context_id,
+            # Return None for greetings: no Redis session was created for this context_id
+            # so the client should NOT store it or send it back.
+            context_id=None if is_greeting else context.context_id,
             session_version=context.session_version,
             language_code=context.language.language_code,
             detected_intent=context.language.detected_intent.value,
             is_healthcare_query=context.language.is_healthcare_query,
-            is_greeting=context.language.is_greeting,
+            is_greeting=is_greeting,
             is_context_sufficient=is_sufficient,
             needs_followup=context.validation.needs_followup,
             followup_question=context.validation.followup_question,
             missing_fields=context.validation.missing_fields,
+            conversation_state=context.validation.conversation_state,
+            block_reason=context.validation.block_reason,
+            block_message=context.validation.block_message,
             context_data=context if is_sufficient else None,
             processing_latency_ms=context.processing_latency_ms,
         )

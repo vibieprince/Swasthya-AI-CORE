@@ -24,6 +24,27 @@ from src.domain.context.enums import (
 )
 
 
+class MissingField(BaseModel):
+    """Semantic wrapper for a missing context field to prevent prompt ambiguity."""
+
+    id: str
+    display_name: str
+    purpose: str
+
+
+class PolicyDecision(BaseModel):
+    """Deterministic output from the ConversationPolicy."""
+
+    is_context_sufficient: bool
+    needs_followup: bool
+    followup_field: Optional[MissingField] = None
+    reason: str
+    next_state: ConversationState
+    # Populated only when next_state == BLOCKED
+    block_reason: Optional[str] = None   # Stable machine-readable code, e.g. MANDATORY_LOCATION_REFUSED
+    block_message: Optional[str] = None  # User-facing explanation
+
+
 class PatientLocation(BaseModel):
     """Geographic context provided by the patient."""
 
@@ -103,6 +124,10 @@ class ContextValidation(BaseModel):
     followup_question_english: Optional[str] = None
     context_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
     validation_notes: str = ""
+    # Session state metadata — populated by the orchestrator, not Pass 3
+    conversation_state: Optional[str] = None   # Current ConversationState value
+    block_reason: Optional[str] = None         # Stable code when state == BLOCKED
+    block_message: Optional[str] = None        # User-facing message when state == BLOCKED
 
 
 class PatientContext(BaseModel):
@@ -133,5 +158,7 @@ class ConversationSession(BaseModel):
     version: int = 1
     patient_context: PatientContext
     last_question: Optional[str] = None
+    last_followup_field: Optional[str] = None
+    last_followup_count: int = 0
     created_at_ms: int
     updated_at_ms: int

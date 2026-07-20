@@ -116,13 +116,17 @@ class TavilySearcher:
             name = self._extract_hospital_name(result.get("title", ""), result.get("url", ""))
             if not name:
                 continue
+            result_url = result.get("url")
             candidates.append(
                 HospitalCandidate(
                     candidate_id=str(uuid.uuid4()),
                     hospital_name=name,
                     raw_address=None,
                     source="tavily",
-                    source_url=result.get("url"),
+                    source_url=result_url,
+                    # Map the URL to website so the researcher can scrape it
+                    # and dedup merge can propagate it to the Maps-anchored entity.
+                    website=result_url,
                     raw_scrape_data=result.get("content", "")[:2000],
                     data_quality_score=0.5,
                 )
@@ -132,19 +136,55 @@ class TavilySearcher:
 
     def _extract_hospital_name(self, title: str, url: str) -> str:
         """
-        Heuristically extract a hospital name from a Tavily search result title.
+        Extract a canonical hospital name from a Tavily search result title.
 
-        Filters out non-hospital results (news articles, directories, etc.)
+        Strategy: classify by entity type, not by delimiter splitting.
+        Step 1: Reject titles that describe content (pages/articles), not entities.
+        Step 2: Extract name using delimiter-agnostic splitting.
+        Step 3: Validate the extracted name resembles a healthcare facility.
         """
-        hospital_indicators = [
-            "hospital", "clinic", "medical centre", "medical center",
-            "healthcare", "health care", "nursing home", "infirmary",
-            "medicare", "medicity", "medicover", "apollo", "fortis",
-            "max hospital", "aiims", "nimhans", "narayana",
+        import re
+
+        if not title:
+            return ""
+
+        title_stripped = title.strip()
+        title_lower = title_stripped.lower()
+
+        # Step 1: Reject content-describing titles
+        rejection_patterns = [
+            r"\b(top|best|vs\.?|versus|difference between)\b",
+            r"\b(how|why|what|when|where|does|can|should|is|are)\b",
+            r"\b(\d+\s+hospitals?|\d+\s+clinics?|list of|directory|guide to)\b",
+            r"\b(review|reviews|complaint|complaints|feedback)\b",
+            r"\b(near me|cost|price|fee|charges?|appointment)\b",
+            r"\b(our services?|services? offered|about us|contact us)\b",
+            r"[\?\!]",
         ]
-        title_lower = title.lower()
-        if any(kw in title_lower for kw in hospital_indicators):
-            # Clean up common suffixes
-            name = title.split("|")[0].split("-")[0].strip()
-            return name[:150]
-        return ""
+        for pattern in rejection_patterns:
+            if re.search(pattern, title_lower):
+                return ""
+
+        # Step 2: Split on ALL separators including em-dash (U+2014), en-dash (U+2013), bullet
+        parts = re.split(r"\s*[|\-\u2013\u2014:,\u2022]\s*", title_stripped)
+        name = parts[0].strip()
+
+        # Step 3: Validate extracted name is a healthcare facility
+        if not name or len(name) < 4 or len(name) > 60:
+            return ""
+
+        name_lower = name.lower()
+        facility_indicators = [
+            "hospital", "clinic", "medical", "centre", "center", "institute",
+            "healthcare", "health care", "nursing home", "infirmary",
+            "medicare", "medicity", "medicover", "apollo", "fortis", "max",
+            "aiims", "nimhans", "narayana", "care",
+        ]
+        if not any(kw in name_lower for kw in facility_indicators):
+            return ""
+
+        # Reject names that are still clearly descriptive after splitting
+        if re.search(r"^(our|the best|leading|top)\b", name_lower):
+            return ""
+
+        return name

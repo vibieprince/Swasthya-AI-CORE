@@ -40,13 +40,13 @@ class Settings(BaseSettings):
     gemini_api_key: str = Field(..., min_length=10)
     gemini_model: str = "gemini-2.5-flash"
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
-    gemini_max_retries: int = Field(default=3, ge=1, le=10)
+    gemini_max_retries: int = Field(default=2, ge=1, le=10)  # 1 initial + 1 retry
 
     # ── Mistral (Failover LLM) — REQUIRED ─────────────────────────────────────
     mistral_api_key: str = Field(..., min_length=10)
     mistral_model: str = "mistral-large-latest"
     mistral_base_url: str = "https://api.mistral.ai/v1"
-    mistral_max_retries: int = Field(default=2, ge=1, le=5)
+    mistral_max_retries: int = Field(default=2, ge=1, le=5)  # 1 initial + 1 retry
 
     # ── Tavily Search — REQUIRED ───────────────────────────────────────────────
     tavily_api_key: str = Field(..., min_length=10)
@@ -59,9 +59,12 @@ class Settings(BaseSettings):
     redis_url: str = Field(..., min_length=10)
     redis_ttl_seconds: int = Field(default=21600, ge=3600)
 
-    # ── LLM Timeouts ───────────────────────────────────────────────────────────
-    gemini_timeout_seconds: int = Field(default=30, ge=10, le=120)   # Issue 9
-    mistral_timeout_seconds: int = Field(default=30, ge=10, le=120)  # Issue 9
+    # ── LLM Timeouts & Circuit Breaker ─────────────────────────────────────────
+    gemini_timeout_seconds: float = Field(default=12.0, ge=2.0, le=120.0)
+    mistral_timeout_seconds: float = Field(default=12.0, ge=2.0, le=120.0)
+    llm_retry_on_429: bool = False
+    llm_circuit_breaker_threshold: int = Field(default=3, ge=1, le=10)
+    llm_circuit_breaker_cooldown: int = Field(default=60, ge=10, le=300)
 
     # ── Scraping & Pipeline Concurrency ────────────────────────────────────────
     scraper_timeout_seconds: float = Field(default=5.0, ge=1.0, le=30.0)

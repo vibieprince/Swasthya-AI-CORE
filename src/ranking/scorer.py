@@ -41,12 +41,19 @@ class HospitalScorer:
         trust_score = (quality_score * 0.7) + (candidate.data_quality_score * 0.3)
         
         # Confidence score indicates how sure the system is about this recommendation
-        # (Heavily penalizes lack of coordinates or completely missing price data)
         confidence_score = 1.0
+
         if not candidate.coordinates:
             confidence_score *= 0.5
-        if not candidate.estimated_cost_max_inr:
+        if not candidate.website:
             confidence_score *= 0.8
+            
+        # Extreme penalty for lacking both coordinates and website (likely a bad extraction)
+        # UNLESS it is verified by NABH
+        if not candidate.coordinates and not candidate.website:
+            if "NABH" not in candidate.accreditations:
+                confidence_score *= 0.1
+                
         confidence_score *= candidate.data_quality_score
         
         return RankingScores(

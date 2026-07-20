@@ -56,6 +56,9 @@ class HospitalNormalizer:
 
     async def _normalize(self, candidate: HospitalCandidate, city: str) -> HospitalCandidate:
         """Normalise a single HospitalCandidate."""
+        # Clean up hospital name (Canonical Resolution)
+        candidate.hospital_name = self._normalize_name(candidate.hospital_name)
+
         # Attempt coordinate resolution if missing
         if not candidate.coordinates or candidate.coordinates.latitude is None:
             from src.pipelines.discovery.maps_search import resolve_coordinates
@@ -105,3 +108,19 @@ class HospitalNormalizer:
         """Extract 6-digit Indian PIN code from an address string."""
         match = re.search(r"\b[1-9]\d{5}\b", address)
         return match.group(0) if match else None
+
+    @staticmethod
+    def _normalize_name(name: str) -> str:
+        """
+        Produce a canonical hospital name by removing SEO spam and structural suffixes.
+        """
+        # Remove anything in parentheses (e.g. " (Best Hospital in Delhi)")
+        name = re.sub(r"\(.*?\)", "", name)
+        
+        # Remove common corporate suffixes
+        name = re.sub(r"(?i)\b(pvt|ltd|private|limited|inc|llp)\b\.?", "", name)
+        
+        # Remove common SEO trailing dashes
+        name = name.split(" - ")[0].split(" | ")[0]
+        
+        return " ".join(name.split()).strip()

@@ -106,11 +106,14 @@ class HospitalResearcher:
 
     async def _research(self, candidate: HospitalCandidate, task_id: str) -> HospitalCandidate:
         """Research a single candidate by scraping its website."""
-        if candidate.raw_scrape_data:
-            return candidate  # Already have content from Tavily snippet
+        # Only skip scraping if we already have snippet data AND there is no
+        # website URL to scrape. A Tavily snippet alone is insufficient —
+        # it lacks structured data (phone, address, ICU flags, accreditations).
+        if candidate.raw_scrape_data and not candidate.website:
+            return candidate
 
         if not candidate.website:
-            return candidate  # No URL to scrape
+            return candidate
 
         logger.info(
             "Scraping hospital website",

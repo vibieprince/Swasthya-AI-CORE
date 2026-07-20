@@ -31,9 +31,10 @@ from src.domain.context.models import (
 )
 from src.domain.context.enums import ConversationState, ClinicalIntent
 from src.infrastructure.llm.gateway import LLMGateway
-from src.pipelines.context.pass1_language_intent import Pass1LanguageIntentDetector
+from src.pipelines.context.pass_combined import CombinedInitialAnalysisPass
 from src.pipelines.context.pass2_clinical import Pass2ClinicalExtractor
 from src.pipelines.context.pass3_validation import Pass3Validator
+from src.pipelines.context.policy import ConversationPolicy
 
 logger = get_logger(__name__)
 
@@ -55,9 +56,10 @@ class ContextOrchestrator:
 
     def __init__(self, gateway: LLMGateway) -> None:
         self._gateway = gateway
-        self._pass1 = Pass1LanguageIntentDetector(gateway)
+        self._combined_pass = CombinedInitialAnalysisPass(gateway)
         self._pass2 = Pass2ClinicalExtractor(gateway)
         self._pass3 = Pass3Validator(gateway)
+        self._policy = ConversationPolicy()
 
     async def run(self, message: str, context_id: str | None = None) -> PatientContext:
         """
@@ -99,8 +101,42 @@ class ContextOrchestrator:
 
         # ── New Session Logic ────────────────────────────────────────────────
         if not is_continuation:
-            # Pass 1: Language + Intent ONLY on new sessions
-            language: LanguageIntelligence = await self._pass1.run(message)
+            # ── Fast Greeting Detection (No LLM) ───────────────────────────
+            import re
+            msg_lower = message.strip().lower()
+            if re.match(r"^(hi|hello|hey|namaste|hola|good\s+morning|good\s+evening|good\s+afternoon|greetings)[\s\!\.\,\?]*$", msg_lower):
+                # Simple heuristic for language code
+                lang = "hi" if "namaste" in msg_lower else "en"
+                language = LanguageIntelligence(
+                    language_code=lang,
+                    language_name="Hindi" if lang == "hi" else "English",
+                    is_greeting=True,
+                    is_healthcare_query=False,
+                    is_irrelevant=False,
+                    detected_intent=ClinicalIntent.GREETING,
+                    confidence=1.0,
+                    reasoning="Deterministic fast-path greeting match",
+                )
+                
+                greeting_response = self._generate_greeting(language.language_code)
+                return PatientContext(
+                    context_id=context_id,
+                    session_version=1,
+                    language=language,
+                    clinical=ClinicalData(),
+                    validation=ContextValidation(
+                        is_context_sufficient=False,
+                        needs_followup=True,
+                        followup_question=greeting_response,
+                        context_confidence=1.0,
+                        validation_notes="Greeting detected via fast-path -- no clinical context yet.",
+                    ),
+                    raw_message=message,
+                    processing_latency_ms=int((time.monotonic() - t_pipeline_start) * 1000),
+                )
+
+            # Combined Pass: Language + Intent + Clinical Extraction
+            language, clinical = await self._combined_pass.run(message)
 
             if language.is_greeting:
                 greeting_response = self._generate_greeting(language.language_code)
@@ -109,7 +145,7 @@ class ContextOrchestrator:
                     context_id=context_id,
                     session_version=1,
                     language=language,
-                    clinical=ClinicalData(),
+                    clinical=clinical,
                     validation=ContextValidation(
                         is_context_sufficient=False,
                         needs_followup=True,
@@ -126,7 +162,7 @@ class ContextOrchestrator:
                     context_id=context_id,
                     session_version=1,
                     language=language,
-                    clinical=ClinicalData(),
+                    clinical=clinical,
                     validation=ContextValidation(
                         is_context_sufficient=False,
                         needs_followup=False,
@@ -136,13 +172,6 @@ class ContextOrchestrator:
                     raw_message=message,
                     processing_latency_ms=int((time.monotonic() - t_pipeline_start) * 1000),
                 )
-
-            # It's a healthcare query, run full extraction
-            clinical = await self._pass2.run(
-                message=message,
-                language_code=language.language_code,
-                intent=language.detected_intent,
-            )
             
             # Start a new session wrapper
             session = ConversationSession(
@@ -161,35 +190,53 @@ class ContextOrchestrator:
                 updated_at_ms=now_ms,
             )
 
-        # ── Continuation Logic (State Machine) ───────────────────────────────
+        # ── Continuation Logic (State Machine) ──────────────────────────────────
         else:
             assert session is not None
-            # Skip Pass1. Reuse language and intent.
             language = session.patient_context.language
-            
-            # If we are in POST_DISCOVERY_QA, we might not want to re-extract clinical data.
-            # But the user said: "Example: Hospital recommended -> Actually pain shifted to abdomen -> Now recommendation changes. Still Accept Context Updates -> Increment Context Version."
-            # So we STILL run Pass 2 Delta Extraction to capture any new clinical entities!
 
-            # Pass 2: Delta Extraction & Python Merge
-            clinical = await self._pass2.run_merge(
-                message=message,
-                language_code=language.language_code,
-                intent=language.detected_intent,
-                existing_clinical=session.patient_context.clinical,
-            )
+            # ── BLOCKED recovery check ────────────────────────────────────
+            # A BLOCKED session may self-recover if the user finally provides the
+            # mandatory field that caused the block. We run one delta extraction to
+            # check. If the field is still absent we return the cached response at
+            # zero additional LLM cost. If it is now present we unblock, reset
+            # counters, and continue the normal pipeline.
+            if session.state == ConversationState.BLOCKED:
+                clinical = await self._pass2.run_merge(
+                    message=message,
+                    language_code=language.language_code,
+                    intent=language.detected_intent,
+                    existing_clinical=session.patient_context.clinical,
+                )
+                if not self._is_blocking_field_resolved(session.last_followup_field, clinical):
+                    logger.info(
+                        "BLOCKED session: mandatory field still absent, fast-failing",
+                        extra={"context_id": context_id, "blocked_field": session.last_followup_field},
+                    )
+                    return session.patient_context
 
-        # ── Deterministic Sufficiency Check (Python) ─────────────────────────
-        missing = []
-        has_symptoms_or_specialty = bool(clinical.symptoms) or (clinical.preferred_specialty is not None)
-        if not has_symptoms_or_specialty:
-            missing.append("symptoms_or_specialty")
+                # Field now present — unblock and continue
+                logger.info(
+                    "BLOCKED session recovered: mandatory field now provided",
+                    extra={"context_id": context_id, "resolved_field": session.last_followup_field},
+                )
+                session.state = ConversationState.GATHERING_CLINICAL_INFO
+                session.last_followup_field = None
+                session.last_followup_count = 0
 
-        has_location = bool(clinical.patient_location.city) or bool(clinical.patient_location.raw_location)
-        if not has_location:
-            missing.append("location")
+            else:
+                # Normal continuation — delta extraction and Python merge
+                # We still run Pass 2 even in POST_DISCOVERY_QA so that new clinical
+                # entities (e.g. "pain shifted to abdomen") increment the version.
+                clinical = await self._pass2.run_merge(
+                    message=message,
+                    language_code=language.language_code,
+                    intent=language.detected_intent,
+                    existing_clinical=session.patient_context.clinical,
+                )
 
-        is_sufficient = len(missing) == 0
+        # ── Deterministic Policy Check (Python) ──────────────────────────────
+        decision = self._policy.evaluate(session=session, clinical=clinical)
 
         # ── Determine if data changed (for versioning) ───────────────────────
         data_changed = False
@@ -201,7 +248,8 @@ class ContextOrchestrator:
                 data_changed = True
 
         # ── Pass 3: Validation + Follow-up ───────────────────────────────────
-        if is_sufficient:
+        new_state = decision.next_state
+        if decision.is_context_sufficient:
             validation = ContextValidation(
                 is_context_sufficient=True,
                 missing_fields=[],
@@ -209,24 +257,34 @@ class ContextOrchestrator:
                 followup_question=None,
                 followup_question_english=None,
                 context_confidence=0.95,
-                validation_notes="Context is sufficient. Ready for Discovery.",
+                validation_notes=decision.reason,
+                conversation_state=new_state.value,
             )
-            new_state = ConversationState.CONTEXT_READY
+        elif not decision.needs_followup:
+            # Conversation is BLOCKED — no LLM call, surface block metadata to client.
+            validation = ContextValidation(
+                is_context_sufficient=False,
+                missing_fields=[],
+                needs_followup=False,
+                followup_question=None,
+                followup_question_english=None,
+                context_confidence=0.0,
+                validation_notes=decision.reason,
+                conversation_state=new_state.value,
+                block_reason=decision.block_reason,
+                block_message=decision.block_message,
+            )
         else:
-            # Need follow-up. LLM generates natural language question.
+            # Need follow-up. LLM generates the natural-language question.
+            assert decision.followup_field is not None
             validation = await self._pass3.run(
                 clinical=clinical,
                 language_code=language.language_code,
                 intent=language.detected_intent.value,
-                missing_fields=missing,
+                missing_field=decision.followup_field,
             )
-            # Determine precise waiting state
-            if "location" in missing and not has_symptoms_or_specialty:
-                 new_state = ConversationState.GATHERING_CLINICAL_INFO
-            elif "location" in missing:
-                 new_state = ConversationState.WAITING_FOR_LOCATION
-            else:
-                 new_state = ConversationState.GATHERING_CLINICAL_INFO
+            # Attach session state; Pass 3 itself has no awareness of the state machine.
+            validation = validation.model_copy(update={"conversation_state": new_state.value})
 
 
         total_latency_ms = int((time.monotonic() - t_pipeline_start) * 1000)
@@ -251,6 +309,19 @@ class ContextOrchestrator:
         session.updated_at_ms = now_ms
         if validation.followup_question:
             session.last_question = validation.followup_question
+            
+        # Update Anti-Loop counters
+        if not decision.is_context_sufficient and decision.followup_field:
+            field_id = decision.followup_field.id
+            if session.last_followup_field == field_id:
+                session.last_followup_count += 1
+            else:
+                session.last_followup_field = field_id
+                session.last_followup_count = 1
+        else:
+            # Reset if sufficient
+            session.last_followup_field = None
+            session.last_followup_count = 0
 
         # Save to Redis
         context_redis_key = f"{self._CONTEXT_KEY_PREFIX}{context_id}"
@@ -268,8 +339,8 @@ class ContextOrchestrator:
                 "is_continuation": is_continuation,
                 "version": session.version,
                 "state": new_state.value,
-                "is_sufficient": is_sufficient,
-                "missing_fields": missing,
+                "is_sufficient": decision.is_context_sufficient,
+                "missing_field": decision.followup_field.id if decision.followup_field else None,
                 "total_latency_ms": total_latency_ms,
             },
         )
@@ -290,3 +361,25 @@ class ContextOrchestrator:
             "ml": "namaskaram! njan MedPath AI aan. mikachha asupathri kandettaan ningalude rogalakshanangal vishad-eekarikkuka.",
         }
         return greetings.get(language_code.lower(), greetings["en"])
+
+    @staticmethod
+    def _is_blocking_field_resolved(blocked_field: str | None, clinical: ClinicalData) -> bool:
+        """
+        Determine whether the field that caused a BLOCKED state is now present
+        in the merged clinical data.
+
+        This is pure deterministic Python — zero LLM cost.
+        Unknown field names are treated as resolved to avoid permanent blocking
+        on a field the system no longer recognises.
+        """
+        if blocked_field is None:
+            return True
+        if blocked_field == "patient_location":
+            return (
+                bool(clinical.patient_location.city)
+                or bool(clinical.patient_location.raw_location)
+            )
+        if blocked_field == "primary_symptoms":
+            return bool(clinical.symptoms) or (clinical.preferred_specialty is not None)
+        # Unrecognised field — treat as resolved to prevent permanent deadlock
+        return True

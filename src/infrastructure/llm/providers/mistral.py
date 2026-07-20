@@ -90,7 +90,14 @@ class MistralProvider(BaseLLMProvider):
                 latency_ms = int((time.monotonic() - t_start) * 1000)
 
                 if response.status_code in _RETRYABLE_STATUS_CODES:
-                    wait = (2 ** attempt) * 0.5
+                    if response.status_code == 429 and not settings.llm_retry_on_429:
+                        raise LLMProviderError(
+                            provider="mistral",
+                            message="HTTP 429 Rate Limited (fast failover)",
+                            status_code=429,
+                        )
+
+                    wait = 0.5  # Quick flat retry instead of exponential backoff
                     logger.warning(
                         "Mistral retryable error",
                         extra={
@@ -104,7 +111,9 @@ class MistralProvider(BaseLLMProvider):
                         message=f"HTTP {response.status_code}",
                         status_code=response.status_code,
                     )
-                    await asyncio.sleep(wait)
+                    
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(wait)
                     continue
 
                 if response.status_code != 200:
@@ -137,7 +146,7 @@ class MistralProvider(BaseLLMProvider):
 
             except (httpx.ConnectError, httpx.ReadTimeout, httpx.ConnectTimeout,
                     httpx.RemoteProtocolError, httpx.NetworkError) as exc:
-                wait = (2 ** attempt) * 0.5
+                wait = 0.5  # Quick flat retry instead of exponential backoff
                 logger.warning(
                     "Mistral network failure",
                     extra={"attempt": attempt + 1, "error": str(exc), "wait_seconds": wait},
@@ -146,7 +155,8 @@ class MistralProvider(BaseLLMProvider):
                     provider="mistral",
                     message=str(exc),
                 )
-                await asyncio.sleep(wait)
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(wait)
 
             except LLMInvalidResponseError:
                 raise

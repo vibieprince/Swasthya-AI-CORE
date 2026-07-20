@@ -17,7 +17,7 @@ from src.domain.discovery.models import HospitalCandidate
 
 logger = get_logger(__name__)
 
-_NAME_SIMILARITY_THRESHOLD = 85.0    # 0–100
+_NAME_SIMILARITY_THRESHOLD = 82.0    # 0–100  (token_set_ratio is more generous; keep threshold meaningful)
 _COORDINATE_PROXIMITY_METERS = 200   # metres
 
 
@@ -54,7 +54,14 @@ class HospitalDeduplicator:
             if match_idx is None:
                 merged.append(candidate)
             else:
-                merged[match_idx] = self._merge(merged[match_idx], candidate)
+                # Always resolve merge so that Maps-sourced candidate is primary.
+                # Maps carries ground-truth coordinates, phone, address, and ratings.
+                existing = merged[match_idx]
+                if candidate.source == "maps" and existing.source != "maps":
+                    # Incoming is Maps; existing is Tavily/NABH — swap roles
+                    merged[match_idx] = self._merge(candidate, existing)
+                else:
+                    merged[match_idx] = self._merge(existing, candidate)
 
         logger.info(
             "Deduplication completed",
@@ -96,7 +103,11 @@ class HospitalDeduplicator:
             return True
 
         # Fuzzy name match
-        similarity = fuzz.token_sort_ratio(
+        # token_set_ratio scores the intersection of tokens relative to the union.
+        # This means "Fortis" vs "Fortis Noida" scores ~100 (subset match),
+        # while "Fortis" vs "Apollo Noida" still scores low (~30).
+        # This correctly handles the city-suffix variation between Maps and Tavily names.
+        similarity = fuzz.token_set_ratio(
             self._normalise_name(a.hospital_name),
             self._normalise_name(b.hospital_name),
         )

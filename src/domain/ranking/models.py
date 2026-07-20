@@ -46,12 +46,12 @@ class RankedHospital(BaseModel):
 
     # ── Location ─────────────────────────────────────────────────────────────
     formatted_address: Optional[str] = Field(default=None)
-    latitude: Optional[float] = Field(default=None, exclude=True)
-    longitude: Optional[float] = Field(default=None, exclude=True)
+    latitude: Optional[float] = Field(default=None)
+    longitude: Optional[float] = Field(default=None)
     distance_km: Optional[float] = Field(default=None)
     estimated_travel_time_minutes: Optional[int] = Field(default=None)
-    google_maps_place_id: Optional[str] = Field(default=None, exclude=True)
-    google_maps_url: Optional[str] = Field(default=None, exclude=True)
+    google_maps_place_id: Optional[str] = Field(default=None)
+    google_maps_url: Optional[str] = Field(default=None)
 
     # ── Contact ────────────────────────────────────────────────────────────────
     contact_number: Optional[str] = Field(default=None)

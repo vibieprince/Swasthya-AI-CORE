@@ -107,7 +107,14 @@ class GeminiProvider(BaseLLMProvider):
                 latency_ms = int((time.monotonic() - t_start) * 1000)
 
                 if response.status_code in _RETRYABLE_STATUS_CODES:
-                    wait = (2 ** attempt) * 0.5
+                    if response.status_code == 429 and not settings.llm_retry_on_429:
+                        raise LLMProviderError(
+                            provider="gemini",
+                            message="HTTP 429 Rate Limited (fast failover)",
+                            status_code=429,
+                        )
+                    
+                    wait = 0.5  # Quick flat retry instead of exponential backoff
                     logger.warning(
                         "Gemini retryable error",
                         extra={
@@ -121,7 +128,9 @@ class GeminiProvider(BaseLLMProvider):
                         message=f"HTTP {response.status_code}",
                         status_code=response.status_code,
                     )
-                    await asyncio.sleep(wait)
+                    
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(wait)
                     continue
 
                 if response.status_code != 200:
@@ -154,7 +163,7 @@ class GeminiProvider(BaseLLMProvider):
 
             except (httpx.ConnectError, httpx.ReadTimeout, httpx.ConnectTimeout,
                     httpx.RemoteProtocolError, httpx.NetworkError) as exc:
-                wait = (2 ** attempt) * 0.5
+                wait = 0.5  # Quick flat retry instead of exponential backoff
                 logger.warning(
                     "Gemini network failure",
                     extra={"attempt": attempt + 1, "error": str(exc), "wait_seconds": wait},
@@ -163,7 +172,8 @@ class GeminiProvider(BaseLLMProvider):
                     provider="gemini",
                     message=str(exc),
                 )
-                await asyncio.sleep(wait)
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(wait)
 
             except LLMInvalidResponseError:
                 raise

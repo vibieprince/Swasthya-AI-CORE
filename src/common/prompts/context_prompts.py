@@ -16,7 +16,7 @@ Return ONLY valid JSON matching this exact schema:
 {
   "language_code": "en",
   "language_name": "English",
-  "is_greeting": true|false,
+  "is_greeting": true|false, // MUST be false if the message contains ANY clinical info or healthcare query
   "is_healthcare_query": true|false,
   "is_irrelevant": true|false,
   "detected_intent": "FIND_HOSPITAL|FIND_DOCTOR|SYMPTOM_INQUIRY|EMERGENCY|COST_INQUIRY|INSURANCE_INQUIRY|GENERAL_HEALTH|GREETING|IRRELEVANT",
@@ -55,6 +55,46 @@ No markdown."""
 PASS2_USER_TEMPLATE = """Language: {language_code}
 Intent: {intent}
 Valid Specialties: {valid_specialties}
+Valid Urgencies: {valid_urgencies}
+
+Message: {message}"""
+
+# ── Combined Pass (Initial Analysis for New Sessions) ──────────────────────────
+
+COMBINED_PASS_SYSTEM = """You are a senior clinical extraction and triage engine.
+Detect the language, intent, and extract clinical entities from the patient message.
+
+Return ONLY valid JSON matching this exact schema:
+{
+  "language_code": "en",
+  "language_name": "English",
+  "is_greeting": true|false, // MUST be false if the message contains ANY clinical info or healthcare query
+  "is_healthcare_query": true|false,
+  "is_irrelevant": true|false,
+  "detected_intent": "FIND_HOSPITAL|FIND_DOCTOR|SYMPTOM_INQUIRY|EMERGENCY|COST_INQUIRY|INSURANCE_INQUIRY|GENERAL_HEALTH|GREETING|IRRELEVANT",
+  "confidence": 0.9,
+  "reasoning": "brief reason",
+  "symptoms": ["str"],
+  "symptom_duration_days": int|null,
+  "pain_level": 1-10|null,
+  "is_emergency": true|false,
+  "pregnancy_status": "pregnant|not_pregnant|unknown",
+  "medical_history": ["str"],
+  "current_medications": ["str"],
+  "allergies": ["str"],
+  "age_years": int|null,
+  "gender": "male|female|other|unknown",
+  "patient_location": {"city": "str|null", "state": "str|null", "pincode": "str|null", "raw_location": "str|null"},
+  "budget_inr": {"min": int|null, "max": int|null, "preference": "economy|standard|premium|any"},
+  "insurance": {"has_insurance": true|false|null, "provider": "str|null", "scheme": "CGHS|PMJAY|ESI|private|null"},
+  "preferred_specialty": "MUST match one from provided list or null",
+  "urgency_level": "MUST match one from provided list",
+  "preferred_hospital_type": "government|private|both",
+  "preferred_gender_doctor": "male|female|no_preference|null"
+}
+No markdown. If it is a greeting ONLY or irrelevant, set clinical fields to null or empty arrays. If it contains BOTH a greeting and a healthcare query (e.g. "Hi I have fever"), is_greeting MUST be false and you must extract the clinical data."""
+
+COMBINED_PASS_USER_TEMPLATE = """Valid Specialties: {valid_specialties}
 Valid Urgencies: {valid_urgencies}
 
 Message: {message}"""
@@ -113,9 +153,9 @@ No markdown."""
 
 PASS3_USER_TEMPLATE = """Language: {language_code}
 Intent: {intent}
-Missing Fields to ask for: {missing_fields}
+Missing Field to ask for: {missing_field}
 
-Generate a short follow-up asking for the missing fields."""
+Generate a short follow-up asking for the missing field."""
 
 # ── Greeting Response ──────────────────────────────────────────────────────────
 

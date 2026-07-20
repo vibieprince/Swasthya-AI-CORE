@@ -54,6 +54,8 @@ from src.pipelines.discovery.researcher import HospitalResearcher
 from src.pipelines.discovery.review_extractor import ReviewExtractor
 from src.pipelines.discovery.strategy import SearchStrategyGenerator
 from src.pipelines.discovery.tavily_search import TavilySearcher
+from src.pipelines.discovery.validator import HospitalValidator
+from src.pipelines.discovery.resolver import HospitalEntityResolver
 
 from src.config.settings import get_settings
 
@@ -73,8 +75,10 @@ class DiscoveryOrchestrator:
         self._maps = GoogleMapsSearcher()
         self._nabh = NABHSearcher()
         self._scraper = HospitalScraper()
+        self._resolver = HospitalEntityResolver()
         self._deduplicator = HospitalDeduplicator()
         self._normalizer = HospitalNormalizer()
+        self._validator = HospitalValidator()
         self._researcher = HospitalResearcher(self._scraper)
         self._review_extractor = ReviewExtractor()
         self._facility_extractor = FacilityExtractor()
@@ -182,8 +186,11 @@ class DiscoveryOrchestrator:
             )
             return []
 
+        # ── Stage: Entity Resolution (Phase 2) ─────────────────────────────────
+        resolved_candidates = self._resolver.resolve_all(all_candidates, request.location.city)
+
         # ── Stage: Deduplication & Normalization (40%) ─────────────────────────
-        unique_candidates = self._deduplicator.deduplicate(all_candidates)
+        unique_candidates = self._deduplicator.deduplicate(resolved_candidates)
 
         # ── Normalize (fills missing coordinates where possible) ───────────────
         normalized_candidates = await self._normalizer.normalize_all(
@@ -191,8 +198,14 @@ class DiscoveryOrchestrator:
         )
         await _update(40, "Normalizing")
 
+        # ── Stage: Validation (Quality Gate) ───────────────────────────────────
+        valid_candidates = self._validator.validate_all(normalized_candidates)
+        if not valid_candidates:
+            logger.warning("No candidates passed the quality gate.", extra={"task_id": task_id})
+            return []
+
         # ── Heuristic Shortlisting (Issue 6): top _SHORTLIST_SIZE only ─────────
-        shortlisted = self._heuristic_shortlist(normalized_candidates)
+        shortlisted = self._heuristic_shortlist(valid_candidates)
 
         logger.info(
             "Shortlisted candidates for research",

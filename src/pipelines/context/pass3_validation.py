@@ -17,7 +17,7 @@ from src.common.prompts.context_prompts import (
     PASS3_USER_TEMPLATE,
     PROMPT_VERSION,
 )
-from src.domain.context.models import ClinicalData, ContextValidation
+from src.domain.context.models import ClinicalData, ContextValidation, MissingField
 from src.infrastructure.llm.gateway import LLMGateway
 from src.infrastructure.llm.providers.base import LLMRequest
 
@@ -41,7 +41,7 @@ class Pass3Validator:
         clinical: ClinicalData,
         language_code: str,
         intent: str,
-        missing_fields: list[str],
+        missing_field: MissingField,
     ) -> ContextValidation:
         """Execute Pass 3 validation and follow-up generation."""
         t_start = time.monotonic()
@@ -51,7 +51,7 @@ class Pass3Validator:
             user_prompt=PASS3_USER_TEMPLATE.format(
                 language_code=language_code,
                 intent=intent,
-                missing_fields=", ".join(missing_fields) if missing_fields else "None",
+                missing_field=missing_field.display_name,
             ),
             temperature=0.05,
             prompt_version=PROMPT_VERSION,
@@ -71,7 +71,7 @@ class Pass3Validator:
         try:
             validation = ContextValidation(
                 is_context_sufficient=False,
-                missing_fields=missing_fields,
+                missing_fields=[missing_field.id],
                 needs_followup=True,
                 followup_question=p.get("followup_question"),
                 followup_question_english=p.get("followup_question_english"),
